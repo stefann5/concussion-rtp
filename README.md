@@ -505,10 +505,3 @@ agitation,                 MEDIUM,     6000,         MEDICAL_EVAL_24H
 ```
 
 10 redova → generiše se 10 pravila sa različitim prioritetima izvršavanja. Novi znakovi mogu biti dodati u CSV bez izmene koda; takođe, ako buduća verzija konsenzusa promeni klasifikaciju ozbiljnosti, to je ponovo izmena tabele a ne pravila.
-
-
-## 7. Zaključak
-
-Predloženi sistem prevodi Amsterdam 2022 protokol stepenovanog povratka igri (GRTP) u izvršivu bazu pravila, kombinujući unaprednog ulančavanje (FC) za zaključivanje od simptoma ka odluci, obradu kompleksnih događaja (CEP) za prepoznavanje vremenskih obrazaca (povratak pogoršanja, netolerancija napora, klaster ponovljenih potresa u prozoru), šablone za parametrizaciju protokola po vrsti sporta i uzrastu, i unazadnog ulančavanje (BC) za odluke o napredovanju koje sistem ume da objasni.
-
-Oblast je strogo opisana u javno dostupnoj kliničkoj literaturi, što omogućava direktan odnos između paragrafa dogovora i pravila u sistemu. Sve potrebne SBNZ tehnike (FC sa najmanje 3 nivoa, accumulate, CEP iz oblasti, šabloni, BC, upiti, dinamički prioritet) izvode se prirodno iz oblasti bez nametanja složenosti, što odgovara uslovima predmeta za najvišu ocenu.
