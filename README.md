@@ -157,8 +157,9 @@ Sistem pri tome **ne zamenjuje SCAT/SCOAT obrasce** — naprotiv, oni su mu glav
 
 - Pri svakom dnevnom unosu okida se lanac pravila unaprednog ulančavanja (FC — Forward Chaining) koja izvode kretanje simptoma, ažuriraju stanje napredovanja (ProgressionStatus) i daju preporuku koraka (StepRecommendation).
 - Sesija obrade kompleksnih događaja (CEP — Complex Event Processing) paralelno gleda tok događaja i okida pravila za prepoznavanje obrazaca (povratak pogoršanja iznad blagog praga, obrazac netolerancije napora, perzistentni simptomi u prozorima 10 dana / 4 nedelje, klaster ponovljenih potresa za individualizovanu procenu).
-- Na zahtev lekara (klikom na "Da li je sportista spreman za sledeći korak?") pokreće se sesija unazadnog ulančavanja (BC — Backward Chaining) koja rekurzivno proverava sve podciljeve.
-- Upiti (queries) se koriste za izveštajne ekrane (ko ima perzistentne simptome, ko je spreman za napredovanje danas, ko ima indikaciju za cervikovestibularnu rehabilitaciju).
+- Za prikaz **liste konkretnih dozvoljenih vežbi** na sportistinom trenutnom koraku (i za retrospektivnu validaciju aktivnosti koju je sportista zabeležio kroz `ExertionAttemptEvent`) pokreće se **rekurzivni BC upit** `isInCategory` nad stablom kategorija aktivnosti — sa neograničenom promenljivom na poziciji aktivnosti engine kroz unifikaciju nabraja sve listove stabla koji pripadaju dozvoljenoj top-level kategoriji za korak, varijabilne dubine, sa putom kroz stablo kao objašnjenjem.
+- Na pitanje *"da li je sportista spreman za sledeći korak?"* pokreće se **običan upit** koji proverava ravnu konjunkciju uslova (vreme dwell-a, odsustvo flag-ova, prisustvo medical clearance-a).
+- Upiti (queries) se takođe koriste za izveštajne ekrane (ko ima perzistentne simptome, ko je spreman za napredovanje danas, ko ima indikaciju za cervikovestibularnu rehabilitaciju).
 
 ### 4.4 Konkretan primer zaključivanja, korak po korak
 
@@ -186,138 +187,145 @@ Sistem pri tome **ne zamenjuje SCAT/SCOAT obrasce** — naprotiv, oni su mu glav
    - `ConcreteActivityPrescription(athleteId="marko", date=day5_remainder, allowedActivities=[REST], blockedActivities=[ANY_EXERCISE], note="Stop today after setback")` — za ostatak dana 5
    - `ConcreteActivityPrescription(athleteId="marko", date=day6, allowedActivities=[SPORT_SPECIFIC_DRILLS_NO_HEAD_IMPACT, RUNNING, CHANGE_OF_DIRECTION_DRILLS, INDIVIDUAL_TRAINING_DRILLS], blockedActivities=[TEAM_DRILLS, CONTACT_DRILLS, COMPETITIVE_PLAY], note="Retry Step 3 — sport-specific training away from team environment, no head impact")` — za sutrašnji pokušaj istog Koraka 3 (po Amsterdam 2022 Tabeli 2)
 9. **Promena stanja sportiste**: pravilo ne menja `athlete.currentStep` (ostaje 3), ali ubacuje `ProtocolLockEvent(athleteId="marko", lockUntilHours=24, reason="STOP_AND_RETRY")`
-10. **Lekar pita kroz interfejs**: "Da li Marko može sutra na Korak 4?" → pokreće se **BC**:
-    - Cilj: `readyForAdvance(athleteId="marko", targetStep=4)`
-    - Podciljevi: `minTimeAtCurrentStep(24h) ∧ symptomFreeAtRest ∧ exertionTolerated ∧ noRedFlags ∧ medicalClearancePresent` (Korak 4 zahteva odobrenje lekara jer ima rizik udaraca)
-    - `exertionTolerated` se ocenjuje na osnovu sutrašnjeg pokušaja Koraka 3
-    - BC vraća: **NE** — eksplikacija pokazuje da `exertionTolerated` nije zadovoljen (postoji aktivan `ExertionIntoleranceFlag`) i da `medicalClearancePresent` nije zadovoljen (nema `MedicalClearanceEvent`-a u istoriji)
-11. **Provera znakova za hitnu reakciju**: pravilo `RedFlagEmergency` se ne okida (nema povraćanja, gubitka svesti, neuroloških znakova) → nema alarma za hitnu pomoć
-12. **Ažuriranje procene povratka igri**: Upit `estimateEarliestReturn` preračunava — sa zaustavljanjem na Koraku 3, najraniji potpuni povratak igri je pomeren za >1 dan, ali je još uvek u okviru tipičnih ~19.8 dana (medijana iz CISG sistematskog pregleda)
+10. **Lekar pita kroz interfejs**: "Da li Marko može sutra na Korak 4?" → pokreće se **običan upit** `isReadyToAdvance(aid="marko", targetStep=4)` koji proverava ravnu konjunkciju uslova za prelazak `currentStep → currentStep + 1`:
+    - `currentStep == 3` i `targetStep == 4` ✓
+    - 24h dwell na trenutnom koraku ✓ (Marko je na Koraku 3 od dana 4)
+    - Odsustvo `ExertionIntoleranceFlag` ✗ (CEP pravilo iz koraka 3 ovog primera ga je upravo ubacilo)
+    - Odsustvo `RedFlagAlert` ✓
+    - Odsustvo `SymptomReportedEvent` iznad praga u poslednja 24h ✗
+    - Prisustvo `MedicalClearanceEvent` ✗ (Korak 4 ima rizik udaraca, zahteva clearance — nedostaje)
+    - **Rezultat**: NE. Eksplikacija nabraja koje uslove sportista nije ispunio (3 nisu zadovoljena) i šta sportista treba da uradi (sačeka da se simptomi povuku, dobije clearance lekara).
+11. **UI prikazuje Marku listu konkretnih vežbi dozvoljenih za sutrašnji pokušaj Koraka 3** → pokreće se **rekurzivni BC upit nad stablom aktivnosti** sa **neograničenom promenljivom**. Sistem ne mora unapred da materijalizuje svaku konkretnu vežbu po koraku u `ConcreteActivityPrescription` — umesto toga drži:
+    - Hijerarhiju kategorija aktivnosti (`ParentCategory` činjenice): npr. `INDIVIDUAL_PASSING_DRILL` ⊂ `BALL_DRILLS` ⊂ `SPORT_SPECIFIC_NO_CONTACT` ⊂ `EXERCISE`
+    - Listu top-level dozvoljenih kategorija po koraku (`AllowedActivity`): Korak 3 dozvoljava `SPORT_SPECIFIC_NO_CONTACT`
+    - Rekurzivni upit `isInCategory(?activity, SPORT_SPECIFIC_NO_CONTACT)` koji enumeriše sve listove stabla pod tom kategorijom
+
+    Trag rekurzije za enumeraciju vežbi pod `SPORT_SPECIFIC_NO_CONTACT`:
+    - Direktna deca kategorije u stablu: `RUNNING_DRILLS`, `BALL_DRILLS`
+    - Spuštanje u `RUNNING_DRILLS` → daje listove `LINEAR_RUNNING`, `CHANGE_OF_DIRECTION`
+    - Spuštanje u `BALL_DRILLS` → daje list `INDIVIDUAL_PASSING_DRILL`
+    - Engine kroz unifikaciju vraća rezultat: `[LINEAR_RUNNING, CHANGE_OF_DIRECTION, INDIVIDUAL_PASSING_DRILL]` — UI ovo prikazuje Marku kao listu dozvoljenih vežbi za sutra
+    - `FULL_CONTACT_TACKLE` se ne pojavljuje u rezultatu jer pripada `CONTACT` grani, koja **nije** u listi `AllowedActivity` za Korak 3
+
+    Ista rekurzivna definicija upita se kasnije koristi i za **retrospektivnu validaciju**: kad Marko zabeleži `ExertionAttemptEvent(activity=X)`, pravilo `BlockActivityNotInAllowedCategory` poziva `isInCategory(X, allowedCategory)` (sad sa vezanom aktivnošću) i ubacuje `ActivityBlockedAlert` ako rekurzija nigde ne potvrdi pripadnost.
+12. **Provera znakova za hitnu reakciju**: pravilo `RedFlagEmergency` se ne okida (nema povraćanja, gubitka svesti, neuroloških znakova) → nema alarma za hitnu pomoć
+13. **Ažuriranje procene povratka igri**: Upit `estimateEarliestReturn` preračunava — sa zaustavljanjem na Koraku 3, najraniji potpuni povratak igri je pomeren za >1 dan, ali je još uvek u okviru tipičnih ~19.8 dana (medijana iz CISG sistematskog pregleda)
 
 ### 4.5 Primeri složenih pravila
 
-#### Pravilo 1 — CEP sa accumulate (obrazac netolerancije napora)
+Pravila su opisana u prozi (kao "ako-onda" izrazi nad činjenicama i događajima u radnoj memoriji). Konkretni DRL kod biće implementiran u izvršnoj fazi projekta.
 
-```drl
-rule "Exertion intolerance pattern over 48h"
-when
-    $athlete : Athlete( $aid : id )
-    $count : Number( intValue >= 2 ) from accumulate(
-        $e : SymptomDuringExertionEvent( athleteId == $aid )
-            over window:time(48h),
-        count($e)
-    )
-    not ExertionIntoleranceFlag( athleteId == $aid )
-then
-    insert(new ExertionIntoleranceFlag($aid, "2+ provoked symptoms in 48h"));
-end
+#### Pravilo 1 — Obrazac netolerancije napora (CEP sa accumulate funkcijom)
+
+**Ako** se za sportistu u kliznom prozoru od **48 sati** pojave **2 ili više** događaja `SymptomDuringExertionEvent` (simptom prijavljen tokom napora) sa porastom simptoma iznad praga, **i** sportista još nema aktivnu oznaku `ExertionIntoleranceFlag`, **onda** sistem ubacuje činjenicu `ExertionIntoleranceFlag(sportista, razlog)` koja kasnije utiče na odluku o napredovanju.
+
+Ovo je primer **CEP** pravila koje koristi:
+- vremenski klizni prozor (`over window:time(48h)`)
+- agregatnu funkciju **accumulate** sa `count` nad podskupom događaja u prozoru
+- `not` uslov da spreči ponovno okidanje pravila kad je oznaka već prisutna
+
+#### Pravilo 2 — Povratak simptoma posle prelaska koraka (CEP sa vremenskim operatorom)
+
+**Ako** sportista pređe na sledeći korak (`StepAdvancementEvent`), **i** unutar **24 sata** posle tog prelaska prijavi simptom čiji je nivo iznad njegovog početnog nivoa (`SymptomReportedEvent`), **onda** sistem ubacuje činjenicu `RegressTrigger(sportista, razlog)`.
+
+Ovo pravilo koristi Drools vremenski operator `after[0s, 24h]` koji povezuje dva događaja iz stream-a po vremenskoj relaciji. Salience pravila je viša od standardnih FC pravila tako da se okida pre opštih pravila o napredovanju.
+
+#### Pravilo 3 — Familija pravila po koraku, sportu i uzrastu (šabloni)
+
+Pravila kojih ima više instanci sa istom strukturom a različitim parametrima izvedena su kao **šabloni** (Drools rule templates). Tri familije takvih pravila opisane su u **sekciji 6**: minimum boravka u koraku (`MinStepDwell`), dozvoljene aktivnosti po koraku (`AllowedActivity`), i nivoi ozbiljnosti znakova za hitnu reakciju (`RedFlagSeverity`).
+
+#### Pravilo 4 — Odluka o vraćanju koraka (FC sa više nivoa, Amsterdam 2022 logika)
+
+Amsterdam 2022 razlikuje setback na **Koracima 1–3** od onog na **Koracima 4–6**. Sistem to izražava kroz dva odvojena pravila iz iste agenda grupe `phase-decision`:
+
+- **Setback na Koracima 1–3**: ako je sportistin trenutni korak između 1 i 3, **i** postoji `RegressTrigger` ili `ExertionIntoleranceFlag` za njega, **onda** sistem ostavlja `currentStep` nepromenjen, ubacuje `ProtocolLockEvent` na 24 sata sa razlogom `STOP_AND_RETRY_SAME_STEP`, i upisuje stavku u zapisnik.
+
+- **Setback na Koracima 4–6**: ako je sportistin trenutni korak između 4 i 6 sa istim okidačima, **onda** sistem postavlja `currentStep = 3`, ažurira `stepEnteredAt` na trenutni datum, ubacuje `ProtocolLockEvent` na 24 sata sa razlogom `REGRESS_TO_STEP_3`, i upisuje regres u zapisnik.
+
+Ova dva pravila su **četvrti nivo lanca FC zaključivanja** koji počinje u Pravilu 1 (CEP detekcija obrasca) → izvedena činjenica → status napredovanja → odluka o koraku → konkretna preporuka aktivnosti (Pravilo 5 nivoa FC izvođenja).
+
+#### Pravilo 5 — Provera dozvoljenosti aktivnosti (BC — rekurzivni upit nad stablom kategorija aktivnosti)
+
+Aktivnosti koje sportista može da izvodi formiraju **stablo kategorija**: korenska kategorija je `EXERCISE`, podkategorije su tipovi vežbi (`AEROBIC`, `RESISTANCE`, `SPORT_SPECIFIC_NO_CONTACT`, `CONTACT`...), a listovi su konkretne vežbe (`WALKING`, `STATIONARY_BIKE`, `INDIVIDUAL_PASSING_DRILL`, `FULL_CONTACT_TACKLE`...).
+
+Stablo se opisuje činjenicama `ParentCategory(child, parent)` koje se inicijalno učitavaju u radnu memoriju iz seed konfiguracije:
+
+```
+ParentCategory(WALKING,                    LIGHT_AEROBIC)
+ParentCategory(STATIONARY_BIKE,            LIGHT_AEROBIC)
+ParentCategory(LIGHT_AEROBIC,              AEROBIC)
+ParentCategory(JOGGING,                    MODERATE_AEROBIC)
+ParentCategory(MODERATE_AEROBIC,           AEROBIC)
+ParentCategory(AEROBIC,                    EXERCISE)
+ParentCategory(BODYWEIGHT_BASIC,           LIGHT_RESISTANCE)
+ParentCategory(LIGHT_RESISTANCE,           RESISTANCE)
+ParentCategory(RESISTANCE,                 EXERCISE)
+ParentCategory(LINEAR_RUNNING,             RUNNING_DRILLS)
+ParentCategory(CHANGE_OF_DIRECTION,        RUNNING_DRILLS)
+ParentCategory(INDIVIDUAL_PASSING_DRILL,   BALL_DRILLS)
+ParentCategory(RUNNING_DRILLS,             SPORT_SPECIFIC_NO_CONTACT)
+ParentCategory(BALL_DRILLS,                SPORT_SPECIFIC_NO_CONTACT)
+ParentCategory(SPORT_SPECIFIC_NO_CONTACT,  EXERCISE)
+ParentCategory(NON_CONTACT_TEAM_TRAINING,  EXERCISE)
+ParentCategory(FULL_CONTACT_TACKLE,        FULL_CONTACT_PRACTICE)
+ParentCategory(FULL_CONTACT_PRACTICE,      CONTACT)
+ParentCategory(COMPETITIVE_PLAY,           CONTACT)
+ParentCategory(CONTACT,                    EXERCISE)
 ```
 
-#### Pravilo 2 — CEP sa vremenskim operatorom (povratak simptoma posle prelaska koraka)
+Sistem zatim drži ravnu **listu top-level dozvoljenih kategorija po koraku** u činjenicama `AllowedActivity(step, category)` (sekcija 6.2). Korak 3 dozvoljava samo `SPORT_SPECIFIC_NO_CONTACT` kao top-level kategoriju.
+
+Rekurzivni upit `isInCategory(activity, category)`:
 
 ```drl
-rule "Symptom recurrence within 24h after step advancement"
-salience 50
-when
-    $advance : StepAdvancementEvent( $aid : athleteId )
-    $symptom : SymptomReportedEvent(
-        athleteId == $aid,
-        totalScore > baseline,
-        this after[0s, 24h] $advance
-    )
-    $athlete : Athlete( id == $aid )
-then
-    insert(new RegressTrigger($aid, "Symptom recurrence post-advance"));
-end
-```
-
-#### Pravilo 3 — Šablon (kratak primer, detaljnije u sekciji 5)
-
-Pravila kojih ima više instanci sa istom strukturom a različitim parametrima izvedena su kao šabloni. Detaljan opis i CSV tabele su u sekciji **6. Šabloni**. Kratak primer:
-
-```drl
-rule "Min days @{ageGroup} @{contactLevel}"
-when
-    $athlete : Athlete( ageGroup == "@{ageGroup}",
-                        sportContactLevel == "@{contactLevel}" )
-then
-    insert(new MinStepDwellRule($athlete.getId(), @{minDays}));
-end
-```
-
-#### Pravilo 4 — FC sa više nivoa (odluka o nazadovanju, prema Amsterdam 2022 logici)
-
-Amsterdam 2022 pravi razliku između setbacks na **Koracima 1–3** (sportista zaustavlja vežbu i pokušava **isti** korak sledećeg dana) i **Koracima 4–6** (sportista se **vraća na Korak 3**). Sistem to izražava kroz dva odvojena pravila:
-
-```drl
-rule "Hold and retry next day on setback during Steps 1-3"
-agenda-group "phase-decision"
-when
-    $athlete : Athlete( $aid : id, $step : currentStep,
-                       eval($step >= 1 && $step <= 3) )
-    ( RegressTrigger( athleteId == $aid )
-      or
-      ExertionIntoleranceFlag( athleteId == $aid ) )
-then
-    // Korak ostaje isti, ali se sledeći pokušaj odlaže za 24h
-    insert(new ProtocolLockEvent($aid, 24, "STOP_AND_RETRY_SAME_STEP"));
-    insert(new AuditEntry($aid, "Hold at Step " + $step + ", retry next day"));
-end
-
-rule "Regress to Step 3 on setback during Steps 4-6"
-agenda-group "phase-decision"
-when
-    $athlete : Athlete( $aid : id, $step : currentStep,
-                       eval($step >= 4 && $step <= 6) )
-    ( RegressTrigger( athleteId == $aid )
-      or
-      ExertionIntoleranceFlag( athleteId == $aid ) )
-then
-    modify($athlete) {
-        setCurrentStep(3),
-        setStepEnteredAt(new Date())
-    }
-    insert(new ProtocolLockEvent($aid, 24, "REGRESS_TO_STEP_3"));
-    insert(new AuditEntry($aid, "Regressed from Step " + $step + " to Step 3"));
-end
-```
-
-#### Pravilo 5 — Unazadnog ulančavanje (BC) — upit o spremnosti
-
-```drl
-query "readyForAdvance" (String aid)
-    Athlete( id == aid, $step : currentStep, $entered : stepEnteredAt )
-    $minDays : MinStepDwellRule( athleteId == aid )
-    eval( hoursSince($entered) >= $minDays.getMinDays() )
-    symptomFreeForHours( aid, $minDays.getMinDays(); )
-    not ExertionIntoleranceFlag( athleteId == aid )
-    not RedFlagAlert( athleteId == aid )
-end
-
-query "symptomFreeForHours" (String aid, int hours)
-    not SymptomReportedEvent(
-        athleteId == aid,
-        totalScore > baseline,
-        this after[0s, hours.h] now()
+query isInCategory(String activity, String category)
+    // Direktan poklop: aktivnost je odmah dete kategorije
+    ParentCategory(activity, category;)
+    or
+    // Rekurzivni slučaj: postoji posrednik koji je dete kategorije,
+    //                   a aktivnost je u tom posredniku (rekurzivno)
+    (
+        ParentCategory($intermediate, category;)
+        and isInCategory(activity, $intermediate;)
     )
 end
 ```
 
-#### Pravilo 6 — Znak za hitnu reakciju sa dinamičkim prioritetom (salience)
+Upit se koristi u dva režima:
 
-```drl
-rule "Red flag emergency alert"
-salience ( $criticalCount * 1000 )
-when
-    $event : SymptomReportedEvent(
-        $aid : athleteId,
-        $criticalCount : criticalSymptomCount > 0
-    )
-then
-    insert(new EmergencyAlert($aid, $event.getOccurredAt(), "Red flag detected"));
-    insert(new ProtocolFreezeEvent($aid));
-end
+- **Enumeracija za UI** (primarno): kad korisnički interfejs treba da prikaže sportisti listu konkretnih vežbi za njegov trenutni korak, pozove se upit sa neograničenom promenljivom `isInCategory(?activity, allowedCategory)` za svaku top-level kategoriju iz `AllowedActivity` za taj korak. Engine kroz unifikaciju nabraja sve listove stabla koji pripadaju toj kategoriji i vraća ih kao listu — bez potrebe da `MaterializeConcreteActivity` unapred raspakuje stotine listova u `ConcreteActivityPrescription`.
+- **Retrospektivna validacija** (sekundarno): kad sportista zabeleži `ExertionAttemptEvent(activity=X)`, obično pravilo `BlockActivityNotInAllowedCategory` prelazi listu `AllowedActivity` za njegov korak S i za svaku stavku poziva `isInCategory(X, allowedCategory)` sa vezanom aktivnošću. Ako bilo koja od provera vrati DA, aktivnost je bila dozvoljena; inače se ubacuje `ActivityBlockedAlert`.
+
+**Šta dobijamo**:
+- `AllowedActivity` tabela u sekciji 6.2 ostaje mala — ~6 top-level kategorija (jedna ili dve po koraku); konkretne vežbe rekurzija raspakuje iz stabla po potrebi
+- Dodavanje nove specifične vežbe (npr. `KETTLEBELL_SWING ⊂ LIGHT_RESISTANCE`) je dodavanje **jednog `ParentCategory` reda** u seed; sva pravila po koraku automatski je počinju razumeti
+- Dubina stabla varira (neke vežbe imaju 4 nivoa nadređenih, neke 2) — rekurzija prirodno prati tu varijaciju
+- Eksplikacija odluke prati put rekurzije: *"`INDIVIDUAL_PASSING_DRILL` je dozvoljen jer je u kategoriji `BALL_DRILLS` ⊂ `SPORT_SPECIFIC_NO_CONTACT`, što je dozvoljena kategorija za Korak 3"*
+
+
+
+#### Pravilo 5b — Spremnost za sledeći korak (običan upit)
+
+Pitanje *"da li je sportista spreman da pređe iz trenutnog koraka u sledeći?"* je **konjunkcija ravnih uslova** koja se može izraziti kao standardni Drools upit:
+
 ```
+isReadyToAdvance(athleteId, targetStep) = TRUE  ako i samo ako:
+
+  - sportista je trenutno na (targetStep - 1)
+  - vreme provedeno na trenutnom koraku ≥ MinStepDwellRule za njegov profil
+  - nema aktivnih ExertionIntoleranceFlag
+  - nema aktivnih RedFlagAlert
+  - nema SymptomReportedEvent iznad praga u poslednja 24 sata
+  - ako je targetStep ∈ {3 sa rizikom udaraca, 4, 5, 6}: postoji MedicalClearanceEvent
+```
+
+Rezultat upita je DA/NE plus lista uslova koji nisu zadovoljeni (eksplikacija). Svi uslovi su direktne pretrage radne memorije za istog sportistu i ravan zadati prag — standardni Drools query mehanizam direktno rešava ovu konjunkciju.
+
+#### Pravilo 6 — Znak za hitnu reakciju sa dinamičkim salience prioritetom
+
+**Ako** se u prijavljenom simptomu (`SymptomReportedEvent`) detektuje neki od znakova za hitnu reakciju (gubitak svesti, konvulzije, ponovljeno povraćanje, slabost ekstremiteta...), **onda** sistem ubacuje `EmergencyAlert` i `ProtocolFreezeEvent` koji zaustavlja dalje napredovanje dok lekar ne potvrdi.
+
+**Salience** ovog pravila se računa **dinamički** na osnovu broja kritičnih znakova: pravilo sa više detektovanih kritičnih znakova ima viši prioritet i okida se pre. Ovaj mehanizam je detaljnije razrađen kroz šablon `RedFlagSeverity` (sekcija 6.3) gde svaki tip znaka dobija različitu osnovnu salience vrednost po nivou ozbiljnosti.
 
 ---
 
@@ -362,30 +370,15 @@ sbnz-concussion/
 
 U sistemu se šabloni koriste za tri familije pravila gde Amsterdam 2022 dogovor (i njegove sistemske ekstenzije) prirodno traže parametrizaciju.
 
+Šablon je u Drools-u definisan u `.drt` fajlu (rule template) sa parametrima u zaglavlju, a konkretne instance pravila se generišu iz prateće CSV ili Excel tabele. Svaki red tabele postaje jedno konkretno pravilo. CSV tabele su date u svakom potpoglavlju jer su one podaci (a ne kod) i čine glavni sadržaj koji opisuje šta sistem zna.
+
 ### 6.1 Šablon `MinStepDwell` — minimum boravka u koraku
 
-**Svrha**: Amsterdam 2022 propisuje minimum 24h između koraka kao standard, ali takođe poziva na "individualizovanu procenu" za sportiste sa ponovljenim potresima i pominje produžen oporavak kod određenih CISG faktora rizika. Ovaj šablon dozvoljava ustanovi da konfiguriše duži minimum za određene podgrupe **bez izmene koda pravila**.
+**Svrha**: Amsterdam 2022 propisuje minimum 24h između koraka kao standard, ali takođe poziva na "individualizovanu procenu" za sportiste sa ponovljenim potresima i pominje produžen oporavak kod određenih CISG faktora rizika. Šablon dozvoljava ustanovi da konfiguriše duži minimum za određene podgrupe **bez izmene koda pravila**.
 
-**`MinStepDwell.drt`**:
-```drl
-template header
-ageGroup
-contactLevel
-historyFlag
-minHours
+**Logika šablona**: za svaki sportista čiji se profil poklapa sa kombinacijom (uzrast, nivo kontakta sporta, oznaka istorije potresa), ako još nema postavljen `MinStepDwellRule`, sistem ubacuje činjenicu `MinStepDwellRule(sportista, minimumSati)` koja kasnije utiče na proveru spremnosti za napredovanje.
 
-template "MinStepDwell"
-rule "Min step dwell @{ageGroup} @{contactLevel} @{historyFlag}"
-when
-    $athlete : Athlete( ageGroup == "@{ageGroup}",
-                        sportContactLevel == "@{contactLevel}",
-                        historyFlag == "@{historyFlag}" )
-    not MinStepDwellRule( athleteId == $athlete.id )
-then
-    insert(new MinStepDwellRule($athlete.getId(), @{minHours}));
-end
-end template
-```
+**Parametri**: `ageGroup`, `contactLevel`, `historyFlag`, `minHours`.
 
 **`MinStepDwell.csv`** (osnovna konfiguracija po Amsterdam 2022):
 ```
@@ -401,93 +394,43 @@ PEDIATRIC,   NONCONTACT,   NONE,        24
 
 Tabela ima 7 redova → generiše se 7 konkretnih pravila iz jednog šablona. Ako lekar odluči da uvede 48h minimum za pedijatriju sa ponovljenim potresom (što neke ustanove primenjuju kao opreznu praksu iznad konsenzusa), to je promena jednog broja u CSV-u — ne treba diranje koda.
 
-### 6.2 Šablon `AllowedActivity` — dozvoljene aktivnosti po koraku
+### 6.2 Šablon `AllowedActivity` — dozvoljene top-level kategorije aktivnosti po koraku
 
-**Svrha**: Amsterdam 2022 Tabela 2 pozitivno opisuje šta je dozvoljeno na svakom koraku (npr. Korak 3: *"Sport-specific training away from the team environment (eg, running, change of direction and/or individual training drills away from the team environment). No activities at risk of head impact."*). Sistem koristi **allow-list** pristup: za svaki korak postoji izričita lista dozvoljenih aktivnosti, a sve ostalo je po default-u zabranjeno.
+**Svrha**: Amsterdam 2022 Tabela 2 pozitivno opisuje šta je dozvoljeno na svakom koraku (npr. Korak 3: *"Sport-specific training away from the team environment (eg, running, change of direction and/or individual training drills away from the team environment). No activities at risk of head impact."*). Sistem koristi **allow-list** pristup nad **top-level kategorijama**: za svaki korak postoji nekoliko dozvoljenih kategorija; konkretne vežbe iz tih kategorija se utvrđuju **rekurzivnim BC upitom `isInCategory`** nad stablom `ParentCategory` činjenica (vidi sekciju 4.5 Pravilo 5).
 
-**`AllowedActivity.drt`**:
-```drl
-template header
-step
-activityType
-sourceCitation
+**Logika šablona**: za svaku kombinaciju (korak, kategorija, citat izvora), sistem inicijalno ubacuje činjenicu `AllowedActivity(korak, kategorija, izvor)` u radnu memoriju.
 
-template "AllowedActivity"
-rule "Allow @{activityType} on Step @{step}"
-when
-    eval(true) // šablon samo seedi činjenicu AllowedActivity, bez okidanja na event
-then
-    insert(new AllowedActivity(@{step}, "@{activityType}", "@{sourceCitation}"));
-end
-end template
-```
+**Parametri**: `step`, `allowedCategory`, `sourceCitation`.
 
 **`AllowedActivity.csv`** (mapira Amsterdam 2022 Tabelu 2):
 ```
-step, activityType,                       sourceCitation
-1,    SYMPTOM_LIMITED_DAILY_LIVING,       Amsterdam 2022 Table 2 Step 1
-2,    WALKING,                            Amsterdam 2022 Table 2 Step 2A
-2,    STATIONARY_BIKE,                    Amsterdam 2022 Table 2 Step 2A
-2,    LIGHT_RESISTANCE_TRAINING,          Amsterdam 2022 Table 2 Step 2B
-3,    SPORT_SPECIFIC_DRILLS_NO_IMPACT,    Amsterdam 2022 Table 2 Step 3
-3,    RUNNING,                            Amsterdam 2022 Table 2 Step 3
-3,    CHANGE_OF_DIRECTION_DRILLS,         Amsterdam 2022 Table 2 Step 3
-3,    INDIVIDUAL_TRAINING_DRILLS,         Amsterdam 2022 Table 2 Step 3
-4,    TEAM_TRAINING_DRILLS,               Amsterdam 2022 Table 2 Step 4
-4,    HIGH_INTENSITY_NONCONTACT,          Amsterdam 2022 Table 2 Step 4
-5,    FULL_CONTACT_PRACTICE,              Amsterdam 2022 Table 2 Step 5
-6,    NORMAL_GAME_PLAY,                   Amsterdam 2022 Table 2 Step 6
+step, allowedCategory,            sourceCitation
+1,    SYMPTOM_LIMITED_DAILY,      Amsterdam 2022 Table 2 Step 1
+2,    LIGHT_AEROBIC,              Amsterdam 2022 Table 2 Step 2A
+2,    MODERATE_AEROBIC,           Amsterdam 2022 Table 2 Step 2B
+2,    LIGHT_RESISTANCE,           Amsterdam 2022 Table 2 Step 2B
+3,    SPORT_SPECIFIC_NO_CONTACT,  Amsterdam 2022 Table 2 Step 3
+4,    NON_CONTACT_TEAM_TRAINING,  Amsterdam 2022 Table 2 Step 4
+5,    FULL_CONTACT_PRACTICE,      Amsterdam 2022 Table 2 Step 5
+6,    COMPETITIVE_PLAY,           Amsterdam 2022 Table 2 Step 6
 ```
 
-12 redova → generiše se 12 činjenica `AllowedActivity` u radnoj memoriji, svaka sa direktnom referencom na paragraf konsenzusa (koristi se i kao objašnjenje koje sistem prikazuje sportisti).
+8 redova → 8 činjenica `AllowedActivity`, svaka sa direktnom referencom na paragraf konsenzusa.
 
-**Prateće podrazumevano pravilo blokade** (nije šablon, jedno pravilo) hvata pokušaje aktivnosti van allow-liste:
+**Prateće pravilo blokade**: **ako** sportista zabeleži `ExertionAttemptEvent(activity=X)` dok je na koraku S, **i** ne postoji nijedna `AllowedActivity(S, allowedCategory)` takva da `isInCategory(X, allowedCategory)` rekurzivno vrati DA, **onda** sistem ubacuje `ActivityBlockedAlert` sa porukom koji korak je u toku, da aktivnost ne pripada nijednoj dozvoljenoj kategoriji za taj korak, i predlogom najbliže dozvoljene alternative.
 
-```drl
-rule "Block any activity not on allow-list for current step"
-agenda-group "activity-validation"
-when
-    $attempt : ExertionAttemptEvent(
-        $aid : athleteId,
-        $activity : activityType
-    )
-    Athlete(id == $aid, $step : currentStep)
-    not AllowedActivity(step == $step, activityType == $activity)
-then
-    insert(new ActivityBlockedAlert($aid, $activity,
-        "Activity '" + $activity + "' is not allowed on Step " + $step
-        + " per Amsterdam 2022 Table 2"));
-end
-```
-
-Ovo jedno pravilo + 12 činjenica iz šablona zamenjuje ono što bi inače zahtevalo eksplicitno enumerisanje svake (korak, zabranjena aktivnost) kombinacije (>20 redova), uz dodatnu sigurnosnu garanciju — ako sportista upiše aktivnost koja nije anticipirana u tabeli, sistem je odbija po default-u umesto da je propusti.
+Ova kombinacija (8 činjenica + ~20 `ParentCategory` činjenica + 1 obično pravilo + 1 rekurzivni BC upit) obezbeđuje:
+- Sigurnost: aktivnost van stabla je automatski blokirana po default-u
+- Proširivost: dodavanje nove vežbe je jedan red u stablu kategorija; `AllowedActivity` matrica ostaje ista
+- Smislenost rekurzije: BC stvarno radi posao — obilazak stabla varijabilne dubine
 
 ### 6.3 Šablon `RedFlagSeverity` — nivoi ozbiljnosti znakova za hitnu reakciju
 
-**Svrha**: Lista crvenih zastava iz Amsterdam 2022 / CRT6 ima različite nivoe ozbiljnosti — neki znakovi (npr. gubitak svesti, konvulzije) zahtevaju trenutni transport u bolnicu, drugi (npr. blago povraćanje, otežana koncentracija) zahtevaju procenu lekara unutar nekoliko sati. Šablon mapira svaki znak na nivo akcije i salience prioritet pravila.
+**Svrha**: Lista znakova za hitnu reakciju iz Amsterdam 2022 / CRT6 ima različite nivoe ozbiljnosti — neki znakovi (npr. gubitak svesti, konvulzije) zahtevaju trenutni transport u bolnicu, drugi (npr. blago povraćanje, otežana koncentracija) zahtevaju procenu lekara unutar nekoliko sati. Šablon mapira svaki znak na nivo akcije i **salience prioritet pravila**.
 
-**`RedFlagSeverity.drt`**:
-```drl
-template header
-flagType
-severity
-salienceLevel
-actionType
+**Logika šablona**: za svaki tip znaka generiše se posebno pravilo sa salience vrednošću koja proistekne iz nivoa ozbiljnosti. **Ako** se u prijavljenom simptomu pojavi taj znak, **onda** sistem ubacuje `EmergencyAlert(sportista, tipZnaka, nivoOzbiljnosti, tipAkcije)`. Pravila sa višom salience vrednošću se izvršavaju pre, što garantuje da kritični znakovi blokiraju protokol pre nego što obrade niže prioritetna pravila.
 
-template "RedFlagSeverity"
-rule "Red flag @{flagType}"
-salience @{salienceLevel}
-when
-    $event : SymptomReportedEvent(
-        $aid : athleteId,
-        @{flagType} == true
-    )
-then
-    insert(new EmergencyAlert($aid, "@{flagType}",
-        "@{severity}", "@{actionType}"));
-end
-end template
-```
+**Parametri**: `flagType`, `severity`, `salienceLevel`, `actionType`.
 
 **`RedFlagSeverity.csv`** (nivoi po CRT6 / Amsterdam 2022 Box 1):
 ```
@@ -504,4 +447,4 @@ neckPain,                  MEDIUM,     6000,         MEDICAL_EVAL_24H
 agitation,                 MEDIUM,     6000,         MEDICAL_EVAL_24H
 ```
 
-10 redova → generiše se 10 pravila sa različitim prioritetima izvršavanja. Novi znakovi mogu biti dodati u CSV bez izmene koda; takođe, ako buduća verzija konsenzusa promeni klasifikaciju ozbiljnosti, to je ponovo izmena tabele a ne pravila.
+10 redova → 10 pravila sa različitim prioritetima izvršavanja. Novi znakovi mogu biti dodati u CSV bez izmene koda; takođe, ako buduća verzija konsenzusa promeni klasifikaciju ozbiljnosti, to je ponovo izmena tabele a ne pravila.
