@@ -13,6 +13,7 @@ import java.util.Date;
 
 rule "Determine status STOP_AND_RETRY at steps 1-3"
     agenda-group "phase-decision"
+    auto-focus true
     when
         $a: Athlete($aid: id, currentStep >= 1 && currentStep <= 3)
         (ExertionIntoleranceFlag(athleteId == $aid) or
@@ -26,6 +27,7 @@ end
 
 rule "Determine status REGRESS at steps 4-6"
     agenda-group "phase-decision"
+    auto-focus true
     when
         $a: Athlete($aid: id, currentStep >= 4 && currentStep <= 6)
         (ExertionIntoleranceFlag(athleteId == $aid) or
@@ -39,6 +41,7 @@ end
 
 rule "Recommend HOLD on current step (steps 1-3)"
     agenda-group "phase-decision"
+    auto-focus true
     salience -10
     when
         $a: Athlete($aid: id, $cur: currentStep)
@@ -52,6 +55,7 @@ end
 
 rule "Recommend REGRESS to step 3 (steps 4-6)"
     agenda-group "phase-decision"
+    auto-focus true
     salience -10
     when
         $a: Athlete($aid: id, $cur: currentStep)
