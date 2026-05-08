@@ -1,0 +1,44 @@
+package rules.cep;
+
+import com.ftn.sbnz.model.events.SymptomDuringExertionEvent;
+import com.ftn.sbnz.model.events.SymptomReportedEvent;
+import com.ftn.sbnz.model.events.StepAdvancementEvent;
+import com.ftn.sbnz.model.facts.ExertionIntoleranceFlag;
+import com.ftn.sbnz.model.facts.MoreThanMildExacerbation;
+import com.ftn.sbnz.model.facts.RegressTrigger;
+import com.ftn.sbnz.model.domain.Athlete;
+
+rule "More than mild exacerbation during exertion"
+    when
+        $e: SymptomDuringExertionEvent($aid: athleteId, $sym: symptom, $d: delta, $dur: durationMinutes,
+                                       (delta > 2 || durationMinutes > 60))
+        not MoreThanMildExacerbation(athleteId == $aid, symptom == $sym, delta == $d)
+    then
+        insert(new MoreThanMildExacerbation($aid, $sym, $d, $dur));
+end
+
+rule "Exertion intolerance pattern"
+    when
+        $a: Athlete($aid: id)
+        Number(intValue >= 2) from accumulate(
+            $ev: SymptomDuringExertionEvent(athleteId == $aid, delta > 2 || durationMinutes > 60)
+                 over window:time(48h),
+            count($ev)
+        )
+        not ExertionIntoleranceFlag(athleteId == $aid)
+    then
+        insert(new ExertionIntoleranceFlag($aid, "Two or more exertion-provoked exacerbations within 48h"));
+end
+
+rule "Symptom recurrence after step advancement"
+    when
+        $adv: StepAdvancementEvent($aid: athleteId)
+        $a: Athlete(id == $aid, $base: baselineSymptoms)
+        $sr: SymptomReportedEvent(athleteId == $aid, $sym: symptom, $lvl: level,
+                                  level > $a.baselineFor($sym))
+        eval($sr.getTimestamp().getTime() >= $adv.getTimestamp().getTime())
+        eval($sr.getTimestamp().getTime() - $adv.getTimestamp().getTime() <= 24L*60L*60L*1000L)
+        not RegressTrigger(athleteId == $aid)
+    then
+        insert(new RegressTrigger($aid, "Symptom " + $sym + " above baseline within 24h after step advance"));
+end

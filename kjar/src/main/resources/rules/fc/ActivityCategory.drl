@@ -1,0 +1,12 @@
+package rules.fc;
+
+import com.ftn.sbnz.model.facts.ParentCategory;
+
+query isInCategory(String activity, String category)
+    ParentCategory(activity, category;)
+    or
+    (
+        ParentCategory($intermediate, category;)
+        and isInCategory(activity, $intermediate;)
+    )
+end

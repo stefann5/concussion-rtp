@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kmodule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://www.drools.org/xsd/kmodule">
+
+    <kbase name="mainKbase" packages="rules.cep,rules.fc,rules.templates"
+           eventProcessingMode="stream" default="true">
+        <ksession name="mainKsession" type="stateful" clockType="realtime" default="true"/>
+    </kbase>
+
+</kmodule>

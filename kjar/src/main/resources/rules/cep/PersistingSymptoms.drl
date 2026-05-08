@@ -1,0 +1,29 @@
+package rules.cep;
+
+import com.ftn.sbnz.model.events.SymptomReportedEvent;
+import com.ftn.sbnz.model.facts.PersistingSymptomsFlag;
+import com.ftn.sbnz.model.facts.CervicovestibularRehabIndication;
+import com.ftn.sbnz.model.domain.Athlete;
+import java.time.ZoneId;
+
+rule "Cervicovestibular rehab indication after 10 days"
+    when
+        $a: Athlete($aid: id, $injury: injuryAt != null)
+        $sr: SymptomReportedEvent(athleteId == $aid,
+                                  symptom in ("DIZZINESS", "NECK_PAIN", "HEADACHE"),
+                                  level > 0)
+        eval($sr.getTimestamp().getTime() - $injury.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() >= 10L*24L*60L*60L*1000L)
+        not CervicovestibularRehabIndication(athleteId == $aid)
+    then
+        insert(new CervicovestibularRehabIndication($aid, "Symptom " + $sr.getSymptom() + " persists beyond 10 days post-injury"));
+end
+
+rule "Persisting symptoms flag after 4 weeks"
+    when
+        $a: Athlete($aid: id, $injury: injuryAt != null)
+        $sr: SymptomReportedEvent(athleteId == $aid, level > 0)
+        eval($sr.getTimestamp().getTime() - $injury.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() >= 28L*24L*60L*60L*1000L)
+        not PersistingSymptomsFlag(athleteId == $aid)
+    then
+        insert(new PersistingSymptomsFlag($aid, "Symptoms persist beyond 4 weeks post-injury"));
+end

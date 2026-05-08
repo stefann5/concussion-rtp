@@ -1,0 +1,20 @@
+package rules.fc;
+
+import com.ftn.sbnz.model.events.ExertionAttemptEvent;
+import com.ftn.sbnz.model.facts.AllowedActivity;
+import com.ftn.sbnz.model.facts.ActivityBlockedAlert;
+import com.ftn.sbnz.model.domain.Athlete;
+
+rule "Block activity not in allowed category for current step"
+    when
+        $a: Athlete($aid: id, $step: currentStep)
+        $att: ExertionAttemptEvent(athleteId == $aid, $act: activity)
+        not (
+            AllowedActivity(step == $step, $cat: allowedCategory)
+            and isInCategory($act, $cat;)
+        )
+        not ActivityBlockedAlert(athleteId == $aid, activity == $act, currentStep == $step)
+    then
+        insert(new ActivityBlockedAlert($aid, $act, $step,
+            "Activity " + $act + " is not allowed at step " + $step));
+end

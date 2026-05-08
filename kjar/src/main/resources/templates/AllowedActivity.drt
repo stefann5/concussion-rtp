@@ -1,0 +1,19 @@
+template header
+step
+allowedCategory
+sourceCitation
+
+package rules.templates;
+
+import com.ftn.sbnz.model.facts.AllowedActivity;
+
+template "AllowedActivityTemplate"
+
+rule "AllowedActivity @{row.rowNumber} step @{step} @{allowedCategory}"
+when
+    not AllowedActivity(step == @{step}, allowedCategory == "@{allowedCategory}")
+then
+    insert(new AllowedActivity(@{step}, "@{allowedCategory}", "@{sourceCitation}"));
+end
+
+end template

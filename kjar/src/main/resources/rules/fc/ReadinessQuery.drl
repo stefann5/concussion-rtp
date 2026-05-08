@@ -1,0 +1,33 @@
+package rules.fc;
+
+import com.ftn.sbnz.model.domain.Athlete;
+import com.ftn.sbnz.model.facts.ExertionIntoleranceFlag;
+import com.ftn.sbnz.model.facts.EmergencyAlert;
+import com.ftn.sbnz.model.facts.MinStepDwellRule;
+import com.ftn.sbnz.model.events.MedicalClearanceEvent;
+import com.ftn.sbnz.model.events.SymptomReportedEvent;
+import com.ftn.sbnz.model.events.SymptomDuringExertionEvent;
+
+query readyToAdvance(String aid, int targetStep)
+    Athlete(id == aid, currentStep == targetStep - 1, $entered: stepEnteredAt != null)
+    MinStepDwellRule(athleteId == aid, $minH: minHours)
+    eval(java.time.Duration.between($entered, java.time.LocalDateTime.now()).toHours() >= $minH)
+    not ExertionIntoleranceFlag(athleteId == aid)
+    not EmergencyAlert(athleteId == aid)
+    not SymptomDuringExertionEvent(athleteId == aid, delta > 2 || durationMinutes > 60)
+    (
+        eval(targetStep < 4)
+        or
+        MedicalClearanceEvent(athleteId == aid, clearanceForStep >= targetStep)
+    )
+end
+
+query athleteAllowedActivities(String aid, String activity)
+    Athlete(id == aid, $step: currentStep)
+    com.ftn.sbnz.model.facts.AllowedActivity(step == $step, $cat: allowedCategory)
+    isInCategory(activity, $cat;)
+end
+
+query allowedCategoriesForStep(int step, String category)
+    com.ftn.sbnz.model.facts.AllowedActivity(step == step, allowedCategory == category)
+end

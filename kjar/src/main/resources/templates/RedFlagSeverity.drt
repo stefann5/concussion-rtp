@@ -1,0 +1,26 @@
+template header
+flagType
+severity
+salienceLevel
+actionType
+
+package rules.templates;
+
+import com.ftn.sbnz.model.events.SymptomReportedEvent;
+import com.ftn.sbnz.model.facts.EmergencyAlert;
+import com.ftn.sbnz.model.enums.RedFlagType;
+import com.ftn.sbnz.model.enums.Severity;
+
+template "RedFlagSeverityTemplate"
+
+rule "RedFlag @{row.rowNumber} @{flagType}"
+salience @{salienceLevel}
+when
+    $sr: SymptomReportedEvent(symptom == "@{flagType}", level > 0, $aid: athleteId)
+    not EmergencyAlert(athleteId == $aid, flagType == RedFlagType.@{flagType})
+then
+    insert(new EmergencyAlert($aid, RedFlagType.@{flagType}, Severity.@{severity},
+                              "@{actionType}", "Red flag detected: @{flagType} (@{severity})"));
+end
+
+end template
