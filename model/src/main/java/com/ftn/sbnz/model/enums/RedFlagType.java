@@ -1,0 +1,14 @@
+package com.ftn.sbnz.model.enums;
+
+public enum RedFlagType {
+    LOSS_OF_CONSCIOUSNESS,
+    SEIZURE,
+    DETERIORATING_CONSCIOUSNESS,
+    WEAKNESS_IN_LIMBS,
+    VISIBLE_SKULL_DEFORMITY,
+    SEVERE_HEADACHE,
+    REPEATED_VOMITING,
+    DOUBLE_VISION,
+    NECK_PAIN,
+    AGITATION
+}
