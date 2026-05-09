@@ -1,5 +1,5 @@
 <div class="min-h-screen bg-slate-50 text-slate-800">
-  <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
+  <header *ngIf="auth.isAuthed()" class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
     <div class="flex items-center gap-3">
       <i class="pi pi-shield text-2xl text-indigo-600"></i>
       <div>
@@ -7,17 +7,32 @@
         <p class="text-xs text-slate-500 m-0">Amsterdam 2022 graduated return to play</p>
       </div>
     </div>
-    <nav class="flex gap-2">
-      <a routerLink="/dashboard" routerLinkActive="bg-indigo-100 text-indigo-700"
-         class="px-3 py-2 rounded text-sm hover:bg-slate-100">Roster</a>
-      <a routerLink="/register" routerLinkActive="bg-indigo-100 text-indigo-700"
-         class="px-3 py-2 rounded text-sm hover:bg-slate-100">Register athlete</a>
-      <a routerLink="/reports" routerLinkActive="bg-indigo-100 text-indigo-700"
-         class="px-3 py-2 rounded text-sm hover:bg-slate-100">Reports</a>
+    <nav class="flex gap-2 items-center">
+      <ng-container *ngIf="role() === 'DOCTOR' || role() === 'ADMIN'">
+        <a routerLink="/dashboard" routerLinkActive="bg-indigo-100 text-indigo-700"
+           class="px-3 py-2 rounded text-sm hover:bg-slate-100">Roster</a>
+        <a routerLink="/register" routerLinkActive="bg-indigo-100 text-indigo-700"
+           class="px-3 py-2 rounded text-sm hover:bg-slate-100">Register</a>
+        <a routerLink="/reports" routerLinkActive="bg-indigo-100 text-indigo-700"
+           class="px-3 py-2 rounded text-sm hover:bg-slate-100">Reports</a>
+        <a routerLink="/audit" routerLinkActive="bg-indigo-100 text-indigo-700"
+           class="px-3 py-2 rounded text-sm hover:bg-slate-100">Audit</a>
+      </ng-container>
+      <a *ngIf="role() === 'ADMIN'" routerLink="/admin" routerLinkActive="bg-indigo-100 text-indigo-700"
+         class="px-3 py-2 rounded text-sm hover:bg-slate-100">Admin</a>
+      <a *ngIf="role() === 'ATHLETE' && auth.state()?.athleteId"
+         [routerLink]="['/athletes', auth.state()?.athleteId]" routerLinkActive="bg-indigo-100 text-indigo-700"
+         class="px-3 py-2 rounded text-sm hover:bg-slate-100">My protocol</a>
+
+      <span class="ml-3 text-sm text-slate-500">{{ auth.state()?.displayName }}</span>
+      <span class="text-xs px-2 py-1 rounded bg-slate-100">{{ role() }}</span>
+      <button class="px-3 py-2 rounded text-sm hover:bg-slate-100 text-slate-600" (click)="auth.logout()">
+        <i class="pi pi-sign-out mr-1"></i>Logout
+      </button>
     </nav>
   </header>
 
-  <main class="p-6 max-w-7xl mx-auto">
+  <main [class]="auth.isAuthed() ? 'p-6 max-w-7xl mx-auto' : 'min-h-screen flex items-center justify-center'">
     <router-outlet/>
   </main>
 </div>

@@ -15,6 +15,7 @@ export interface Athlete {
   currentStep: number;
   stepEnteredAt?: string;
   injuryAt?: string;
+  returnToLearnComplete?: boolean;
 }
 
 export interface RiskFactors {
@@ -110,6 +111,27 @@ export interface Dashboard {
   persisting: { athleteId: string; reason: string }[];
   rehabIndications: { athleteId: string; reason: string }[];
   locks: { athleteId: string; lockUntilHours: number; reason: string; lockedAt: string }[];
+  pediatricRtl: { athleteId: string; message: string }[];
+  individualizedAssessments: { athleteId: string; reason: string }[];
+}
+
+export interface AuditEntry {
+  timestamp: string;
+  athleteId: string;
+  trigger: string;
+  actor: string;
+  rulesFired: string[];
+  factsInserted: string[];
+}
+
+export interface EstimateReturn {
+  currentStep: number;
+  stepsRemaining: number;
+  minHoursPerStep: number;
+  earliestReturn: string;
+  assumesNoSetbacks: boolean;
+  note: string;
+  error?: string;
 }
 
 export interface ReadinessResult {

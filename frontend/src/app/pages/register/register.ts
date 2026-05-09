@@ -9,6 +9,7 @@ import { SelectModule } from 'primeng/select';
 import { CardModule } from 'primeng/card';
 import { CheckboxModule } from 'primeng/checkbox';
 import { ApiService } from '../../services/api.service';
+import { AuthService } from '../../auth/auth.service';
 import { Athlete, STEP_NAMES } from '../../models/domain';
 
 @Component({
@@ -92,6 +93,21 @@ import { Athlete, STEP_NAMES } from '../../models/domain';
           </div>
         </div>
 
+        <div class="mt-6">
+          <h3 class="text-base font-semibold mb-2">Athlete login credentials</h3>
+          <p class="text-xs text-slate-500 mb-2">Optional. Provision a username/password so this athlete can log in and see their own protocol.</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1">
+              <label class="text-sm text-slate-600">Username</label>
+              <input pInputText [(ngModel)]="account.username"/>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="text-sm text-slate-600">Password</label>
+              <input pInputText type="password" [(ngModel)]="account.password"/>
+            </div>
+          </div>
+        </div>
+
         <div class="mt-6 flex gap-2">
           <p-button label="Register" icon="pi pi-check" (onClick)="submit()" [disabled]="!athlete.id || !athlete.name"></p-button>
           <p-button label="Cancel" severity="secondary" [outlined]="true" (onClick)="cancel()"></p-button>
@@ -102,7 +118,10 @@ import { Athlete, STEP_NAMES } from '../../models/domain';
 })
 export class RegisterComponent {
   private api = inject(ApiService);
+  private auth = inject(AuthService);
   private router = inject(Router);
+
+  account = { username: '', password: '' };
 
   athlete: Athlete = {
     id: '',
@@ -133,7 +152,12 @@ export class RegisterComponent {
 
   submit() {
     this.api.registerAthlete(this.athlete).subscribe(a => {
-      this.router.navigate(['/athletes', a.id]);
+      if (this.account.username && this.account.password) {
+        this.auth.registerAthleteAccount(a.id, this.account.username, this.account.password, a.name)
+          .subscribe(() => this.router.navigate(['/athletes', a.id]));
+      } else {
+        this.router.navigate(['/athletes', a.id]);
+      }
     });
   }
 
