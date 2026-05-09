@@ -14,6 +14,14 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
     provideAnimationsAsync(),
-    providePrimeNG({ theme: { preset: Aura } })
+    providePrimeNG({
+      theme: {
+        preset: Aura,
+        options: {
+          darkModeSelector: '.app-never-dark',
+          cssLayer: { name: 'primeng', order: 'theme, base, primeng, utilities' }
+        }
+      }
+    })
   ]
 };

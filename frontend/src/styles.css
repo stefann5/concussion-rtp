@@ -1,4 +1,73 @@
+@layer theme, base, primeng, utilities;
+
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
 
-html, body { height: 100%; margin: 0; }
+:root {
+  color-scheme: light;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #fafafa;
+  color: #1f2937;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+
+/* Tighter PrimeNG buttons + inputs, neutral palette */
+.p-button {
+  --p-button-primary-background: #1f2937;
+  --p-button-primary-border-color: #1f2937;
+  --p-button-primary-hover-background: #111827;
+  --p-button-primary-hover-border-color: #111827;
+  --p-button-primary-active-background: #0f172a;
+}
+
+.p-inputtext, .p-select, .p-inputnumber-input, .p-textarea {
+  --p-inputtext-background: #ffffff;
+  --p-inputtext-border-color: #e5e7eb;
+  --p-inputtext-hover-border-color: #d1d5db;
+  --p-inputtext-focus-border-color: #1f2937;
+  --p-inputtext-color: #1f2937;
+}
+
+.p-card {
+  --p-card-background: #ffffff;
+  --p-card-border-color: #e5e7eb;
+  --p-card-color: #1f2937;
+  --p-card-shadow: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.p-tag {
+  --p-tag-info-background: #eef2ff;
+  --p-tag-info-color: #3730a3;
+  --p-tag-success-background: #ecfdf5;
+  --p-tag-success-color: #065f46;
+  --p-tag-warn-background: #fffbeb;
+  --p-tag-warn-color: #92400e;
+  --p-tag-danger-background: #fef2f2;
+  --p-tag-danger-color: #991b1b;
+  --p-tag-secondary-background: #f3f4f6;
+  --p-tag-secondary-color: #374151;
+  font-weight: 500;
+}
+
+.p-chip {
+  --p-chip-background: #f3f4f6;
+  --p-chip-color: #374151;
+  --p-chip-border-radius: 6px;
+}
+
+.p-message {
+  border-radius: 8px;
+}
+
+.p-datatable-table {
+  font-size: 0.875rem;
+}

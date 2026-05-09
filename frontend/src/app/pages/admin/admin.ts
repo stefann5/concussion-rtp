@@ -1,7 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { SelectModule } from 'primeng/select';
 import { TextareaModule } from 'primeng/textarea';
@@ -11,16 +10,16 @@ import { ApiService } from '../../services/api.service';
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, CardModule, ButtonModule, SelectModule, TextareaModule, MessageModule],
+  imports: [CommonModule, FormsModule, ButtonModule, SelectModule, TextareaModule, MessageModule],
   template: `
-    <h2 class="text-2xl font-semibold mb-1">Template editor</h2>
-    <p class="text-sm text-slate-500 mb-4">Edit CSV-driven rule templates. Saving rebuilds the knowledge base immediately.</p>
+    <h2 class="text-xl font-semibold m-0 mb-1">Template editor</h2>
+    <p class="text-sm text-neutral-500 m-0 mb-6">Edit CSV-driven rule templates. Saving rebuilds the knowledge base immediately.</p>
 
-    <p-card>
+    <div class="bg-white border border-neutral-200 rounded-lg p-4">
       <div class="flex items-center gap-2 mb-3">
         <p-select [(ngModel)]="selectedName" [options]="templateOptions()" placeholder="Pick a template"
                   (onChange)="load()" styleClass="min-w-[16rem]"></p-select>
-        <p-button label="Reload" icon="pi pi-refresh" severity="secondary" [outlined]="true" (onClick)="load()" [disabled]="!selectedName"></p-button>
+        <p-button label="Reload" size="small" severity="secondary" [outlined]="true" (onClick)="load()" [disabled]="!selectedName"></p-button>
       </div>
 
       <textarea pTextarea [(ngModel)]="csv" rows="14" class="w-full font-mono text-xs"
@@ -29,18 +28,16 @@ import { ApiService } from '../../services/api.service';
       <p-message *ngIf="message() as msg" [severity]="msg.severity" styleClass="mt-3 w-full">{{ msg.text }}</p-message>
 
       <div class="mt-3 flex gap-2">
-        <p-button label="Save and rebuild" icon="pi pi-save" (onClick)="save()" [disabled]="!selectedName || !csv"></p-button>
+        <p-button label="Save and rebuild" (onClick)="save()" [disabled]="!selectedName || !csv"></p-button>
       </div>
 
-      <div class="mt-6 text-xs text-slate-500">
-        <p class="m-0"><strong>Format reference:</strong></p>
-        <ul class="m-0 pl-4">
-          <li>MinStepDwell: ageGroup, contactLevel, historyFlag, minHours</li>
-          <li>RedFlagSeverity: flagType, severity, salienceLevel, actionType</li>
-          <li>AllowedActivity: step, allowedCategory, sourceCitation</li>
-        </ul>
+      <div class="mt-6 pt-4 border-t border-neutral-200 text-xs text-neutral-500 leading-relaxed">
+        <p class="m-0 font-medium text-neutral-700 mb-1">Format reference</p>
+        <p class="m-0">MinStepDwell: ageGroup, contactLevel, historyFlag, minHours</p>
+        <p class="m-0">RedFlagSeverity: flagType, severity, salienceLevel, actionType</p>
+        <p class="m-0">AllowedActivity: step, allowedCategory, sourceCitation</p>
       </div>
-    </p-card>
+    </div>
   `
 })
 export class AdminComponent implements OnInit {

@@ -5,7 +5,6 @@ import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
-import { CardModule } from 'primeng/card';
 import { SelectModule } from 'primeng/select';
 import { InputTextModule } from 'primeng/inputtext';
 import { ApiService } from '../../services/api.service';
@@ -23,35 +22,32 @@ interface RosterRow {
 @Component({
   selector: 'app-roster',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, ButtonModule, TableModule, TagModule, CardModule, SelectModule, InputTextModule],
+  imports: [CommonModule, FormsModule, RouterLink, ButtonModule, TableModule, TagModule, SelectModule, InputTextModule],
   template: `
-    <div class="flex justify-between items-center mb-4">
+    <div class="flex justify-between items-end mb-6">
       <div>
-        <h2 class="text-2xl font-semibold m-0">Athlete roster</h2>
-        <p class="text-slate-500 m-0">All athletes currently progressing through the protocol.</p>
+        <h2 class="text-xl font-semibold m-0">Roster</h2>
+        <p class="text-sm text-neutral-500 m-0 mt-1">{{ rows().length }} athletes under monitoring</p>
       </div>
       <a routerLink="/register">
-        <p-button label="Register athlete" icon="pi pi-plus"></p-button>
+        <p-button label="Register athlete" size="small"></p-button>
       </a>
     </div>
 
-    <p-card>
-      <div class="flex items-center gap-2 mb-3 text-sm">
-        <span class="text-slate-500">Filter:</span>
-        <input pInputText [(ngModel)]="search" placeholder="name / sport" class="text-sm"/>
-        <p-select [(ngModel)]="riskFilter" [options]="riskFilters" placeholder="Risk" styleClass="text-sm"></p-select>
-        <p-select [(ngModel)]="stepFilter" [options]="stepFilters" placeholder="Step" styleClass="text-sm"></p-select>
-        <p-button label="Clear" severity="secondary" [outlined]="true" (onClick)="clearFilters()"></p-button>
-      </div>
+    <div class="bg-white border border-neutral-200 rounded-lg p-4 mb-4 flex items-center gap-2">
+      <input pInputText [(ngModel)]="searchVal" (ngModelChange)="search.set($event)" placeholder="Search by name or sport" class="text-sm flex-1"/>
+      <p-select [(ngModel)]="riskVal" (onChange)="riskFilter.set(riskVal)" [options]="riskFilters" placeholder="Any risk" [showClear]="true"></p-select>
+      <p-select [(ngModel)]="stepVal" (onChange)="stepFilter.set(stepVal)" [options]="stepFilters" placeholder="Any step" [showClear]="true"></p-select>
+    </div>
 
-      <p-table [value]="filtered()" [paginator]="filtered().length > 10" [rows]="10" responsiveLayout="scroll">
+    <div class="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+      <p-table [value]="filtered()" [paginator]="filtered().length > 10" [rows]="10">
         <ng-template pTemplate="header">
-          <tr>
+          <tr class="text-xs uppercase tracking-wide text-neutral-500">
             <th>Risk</th>
             <th>Name</th>
             <th>Sport</th>
             <th>Step</th>
-            <th>Description</th>
             <th>Alerts</th>
             <th>Intolerance</th>
             <th>Persisting</th>
@@ -60,32 +56,25 @@ interface RosterRow {
         </ng-template>
         <ng-template pTemplate="body" let-r>
           <tr>
-            <td>
-              <p-tag [value]="riskBucket(r.riskScore)" [severity]="riskSeverity(r.riskScore)"></p-tag>
-            </td>
+            <td><p-tag [value]="riskBucket(r.riskScore)" [severity]="riskSeverity(r.riskScore)"></p-tag></td>
             <td class="font-medium">{{ r.athlete.name }}</td>
-            <td>{{ r.athlete.sport }}</td>
-            <td><p-tag [value]="'Step ' + r.athlete.currentStep" severity="secondary"></p-tag></td>
-            <td class="text-slate-600 text-sm">{{ stepName(r.athlete.currentStep) }}</td>
-            <td><span [class]="r.alerts > 0 ? 'text-red-600 font-semibold' : ''">{{ r.alerts }}</span></td>
-            <td>{{ r.intolerance }}</td>
-            <td>{{ r.persisting }}</td>
+            <td class="text-neutral-600">{{ r.athlete.sport }}</td>
+            <td class="text-neutral-600">{{ r.athlete.currentStep }} <span class="text-xs text-neutral-400">{{ stepName(r.athlete.currentStep) }}</span></td>
+            <td><span [class.text-red-600]="r.alerts > 0" [class.font-semibold]="r.alerts > 0">{{ r.alerts }}</span></td>
+            <td class="text-neutral-600">{{ r.intolerance }}</td>
+            <td class="text-neutral-600">{{ r.persisting }}</td>
             <td class="text-right">
-              <a [routerLink]="['/athletes', r.athlete.id]">
-                <p-button label="Open" icon="pi pi-arrow-right" iconPos="right" severity="secondary" [outlined]="true"></p-button>
-              </a>
+              <a [routerLink]="['/athletes', r.athlete.id]" class="text-sm text-neutral-600 hover:text-neutral-900">Open →</a>
             </td>
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
-          <tr>
-            <td colspan="9" class="text-center py-8 text-slate-500">
-              No athletes match the filter. <a routerLink="/register" class="text-indigo-600 underline">Register one</a>.
-            </td>
-          </tr>
+          <tr><td colspan="8" class="text-center py-12 text-sm text-neutral-500">
+            No athletes match. <a routerLink="/register" class="underline">Register one</a>.
+          </td></tr>
         </ng-template>
       </p-table>
-    </p-card>
+    </div>
   `
 })
 export class RosterComponent implements OnInit {
@@ -96,19 +85,23 @@ export class RosterComponent implements OnInit {
   riskFilter = signal<string | null>(null);
   stepFilter = signal<number | null>(null);
 
+  searchVal = '';
+  riskVal: string | null = null;
+  stepVal: number | null = null;
+
   riskFilters = [
-    { label: 'High risk', value: 'high' },
-    { label: 'Medium risk', value: 'medium' },
-    { label: 'Low risk', value: 'low' }
+    { label: 'High', value: 'high' },
+    { label: 'Medium', value: 'medium' },
+    { label: 'Low', value: 'low' }
   ];
   stepFilters = Object.keys(STEP_NAMES).map(k => ({ label: `Step ${k}`, value: parseInt(k, 10) }));
 
   filtered = computed(() => {
-    const search = (this.search() ?? '').toLowerCase();
+    const s = (this.search() ?? '').toLowerCase();
     const risk = this.riskFilter();
     const step = this.stepFilter();
     return this.rows().filter(r => {
-      if (search && !(r.athlete.name?.toLowerCase().includes(search) || r.athlete.sport?.toLowerCase().includes(search))) return false;
+      if (s && !(r.athlete.name?.toLowerCase().includes(s) || r.athlete.sport?.toLowerCase().includes(s))) return false;
       if (step != null && r.athlete.currentStep !== step) return false;
       if (risk === 'high' && r.riskScore < 100) return false;
       if (risk === 'medium' && (r.riskScore < 30 || r.riskScore >= 100)) return false;
@@ -134,12 +127,6 @@ export class RosterComponent implements OnInit {
         }));
       });
     });
-  }
-
-  clearFilters() {
-    this.search.set('');
-    this.riskFilter.set(null);
-    this.stepFilter.set(null);
   }
 
   riskBucket(score: number) {

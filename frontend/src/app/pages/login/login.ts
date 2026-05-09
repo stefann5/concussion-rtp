@@ -4,43 +4,36 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
 import { AuthService } from '../../auth/auth.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, CardModule, MessageModule],
+  imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, MessageModule],
   template: `
-    <div class="w-full max-w-md p-6">
-      <div class="text-center mb-6">
-        <i class="pi pi-shield text-5xl text-indigo-600"></i>
-        <h1 class="text-2xl font-semibold mt-2">SBNZ Concussion Protocol</h1>
-        <p class="text-sm text-slate-500">Sign in to continue</p>
+    <div class="w-full max-w-sm p-8">
+      <div class="mb-8">
+        <h1 class="text-xl font-semibold m-0">SBNZ Concussion</h1>
+        <p class="text-sm text-neutral-500 m-0 mt-1">Amsterdam 2022 graduated return-to-play protocol</p>
       </div>
-      <p-card>
-        <div class="space-y-3">
-          <div class="flex flex-col gap-1">
-            <label class="text-sm text-slate-600">Username</label>
-            <input pInputText [(ngModel)]="username" (keyup.enter)="submit()" autofocus/>
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="text-sm text-slate-600">Password</label>
-            <input pInputText type="password" [(ngModel)]="password" (keyup.enter)="submit()"/>
-          </div>
-          <p-message *ngIf="error()" severity="error" styleClass="w-full">{{ error() }}</p-message>
-          <p-button label="Sign in" icon="pi pi-sign-in" (onClick)="submit()" [disabled]="!username || !password" styleClass="w-full"></p-button>
+      <div class="space-y-4">
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-neutral-600">Username</label>
+          <input pInputText [(ngModel)]="username" (keyup.enter)="submit()" autofocus class="w-full"/>
         </div>
-      </p-card>
-      <div class="mt-4 text-xs text-slate-500">
-        <strong>Demo accounts:</strong>
-        <ul class="m-0 pl-5 mt-1">
-          <li>doctor / doctor — clinician view (full access)</li>
-          <li>trainer / trainer — athletic trainer (clinician role)</li>
-          <li>admin / admin — admin (template editor)</li>
-          <li>Athletes log in with credentials provisioned at registration time</li>
-        </ul>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-xs font-medium text-neutral-600">Password</label>
+          <input pInputText type="password" [(ngModel)]="password" (keyup.enter)="submit()" class="w-full"/>
+        </div>
+        <p-message *ngIf="error()" severity="error" styleClass="w-full text-xs">{{ error() }}</p-message>
+        <p-button label="Sign in" (onClick)="submit()" [disabled]="!username || !password" styleClass="w-full"></p-button>
+      </div>
+      <div class="mt-8 pt-6 border-t border-neutral-200 text-xs text-neutral-500 space-y-1">
+        <p class="m-0 font-medium text-neutral-600">Demo accounts</p>
+        <p class="m-0">doctor / doctor — clinician</p>
+        <p class="m-0">trainer / trainer — clinician</p>
+        <p class="m-0">admin / admin — template editor</p>
       </div>
     </div>
   `

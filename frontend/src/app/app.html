@@ -1,38 +1,39 @@
-<div class="min-h-screen bg-slate-50 text-slate-800">
-  <header *ngIf="auth.isAuthed()" class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
-    <div class="flex items-center gap-3">
-      <i class="pi pi-shield text-2xl text-indigo-600"></i>
-      <div>
-        <h1 class="text-lg font-semibold m-0">SBNZ Concussion Protocol</h1>
-        <p class="text-xs text-slate-500 m-0">Amsterdam 2022 graduated return to play</p>
-      </div>
+<div *ngIf="auth.isAuthed(); else publicShell" class="min-h-screen bg-neutral-50 text-neutral-900">
+  <header class="bg-white border-b border-neutral-200 px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-6">
+      <span class="font-semibold tracking-tight">SBNZ Concussion</span>
+      <nav class="flex items-center gap-1 text-sm">
+        <ng-container *ngIf="role() === 'DOCTOR' || role() === 'ADMIN'">
+          <a routerLink="/dashboard" routerLinkActive="bg-neutral-100"
+             class="px-3 py-1.5 rounded text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100">Roster</a>
+          <a routerLink="/register" routerLinkActive="bg-neutral-100"
+             class="px-3 py-1.5 rounded text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100">Register</a>
+          <a routerLink="/reports" routerLinkActive="bg-neutral-100"
+             class="px-3 py-1.5 rounded text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100">Reports</a>
+          <a routerLink="/audit" routerLinkActive="bg-neutral-100"
+             class="px-3 py-1.5 rounded text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100">Audit</a>
+        </ng-container>
+        <a *ngIf="role() === 'ADMIN'" routerLink="/admin" routerLinkActive="bg-neutral-100"
+           class="px-3 py-1.5 rounded text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100">Admin</a>
+        <a *ngIf="role() === 'ATHLETE' && auth.state()?.athleteId"
+           [routerLink]="['/athletes', auth.state()?.athleteId]" routerLinkActive="bg-neutral-100"
+           class="px-3 py-1.5 rounded text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100">My protocol</a>
+      </nav>
     </div>
-    <nav class="flex gap-2 items-center">
-      <ng-container *ngIf="role() === 'DOCTOR' || role() === 'ADMIN'">
-        <a routerLink="/dashboard" routerLinkActive="bg-indigo-100 text-indigo-700"
-           class="px-3 py-2 rounded text-sm hover:bg-slate-100">Roster</a>
-        <a routerLink="/register" routerLinkActive="bg-indigo-100 text-indigo-700"
-           class="px-3 py-2 rounded text-sm hover:bg-slate-100">Register</a>
-        <a routerLink="/reports" routerLinkActive="bg-indigo-100 text-indigo-700"
-           class="px-3 py-2 rounded text-sm hover:bg-slate-100">Reports</a>
-        <a routerLink="/audit" routerLinkActive="bg-indigo-100 text-indigo-700"
-           class="px-3 py-2 rounded text-sm hover:bg-slate-100">Audit</a>
-      </ng-container>
-      <a *ngIf="role() === 'ADMIN'" routerLink="/admin" routerLinkActive="bg-indigo-100 text-indigo-700"
-         class="px-3 py-2 rounded text-sm hover:bg-slate-100">Admin</a>
-      <a *ngIf="role() === 'ATHLETE' && auth.state()?.athleteId"
-         [routerLink]="['/athletes', auth.state()?.athleteId]" routerLinkActive="bg-indigo-100 text-indigo-700"
-         class="px-3 py-2 rounded text-sm hover:bg-slate-100">My protocol</a>
-
-      <span class="ml-3 text-sm text-slate-500">{{ auth.state()?.displayName }}</span>
-      <span class="text-xs px-2 py-1 rounded bg-slate-100">{{ role() }}</span>
-      <button class="px-3 py-2 rounded text-sm hover:bg-slate-100 text-slate-600" (click)="auth.logout()">
-        <i class="pi pi-sign-out mr-1"></i>Logout
-      </button>
-    </nav>
+    <div class="flex items-center gap-3 text-sm">
+      <span class="text-neutral-500">{{ auth.state()?.displayName }}</span>
+      <span class="text-xs px-2 py-0.5 rounded border border-neutral-200 text-neutral-500">{{ role() }}</span>
+      <button class="text-neutral-500 hover:text-neutral-900" (click)="auth.logout()">Sign out</button>
+    </div>
   </header>
 
-  <main [class]="auth.isAuthed() ? 'p-6 max-w-7xl mx-auto' : 'min-h-screen flex items-center justify-center'">
+  <main class="p-8 max-w-6xl mx-auto">
     <router-outlet/>
   </main>
 </div>
+
+<ng-template #publicShell>
+  <div class="min-h-screen bg-neutral-50 text-neutral-900 flex items-center justify-center">
+    <router-outlet/>
+  </div>
+</ng-template>
