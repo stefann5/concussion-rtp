@@ -57,18 +57,32 @@ public class AthleteController {
     @GetMapping("/{id}/dashboard")
     @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #id)")
     public Map<String, Object> dashboard(@PathVariable String id) {
-        return Map.of(
-                "athlete", knowledge.getAthlete(id),
-                "recommendations", protocol.getRecommendations(id),
-                "alerts", protocol.getAlerts(id),
-                "blocks", protocol.getActivityBlocks(id),
-                "intoleranceFlags", protocol.getExertionIntoleranceFlags(id),
-                "regressTriggers", protocol.getRegressTriggers(id),
-                "exacerbations", protocol.getExacerbations(id),
-                "persisting", protocol.getPersistingSymptoms(id),
-                "rehabIndications", protocol.getCervicovestibularIndications(id),
-                "locks", protocol.getLocks(id)
-        );
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("athlete", knowledge.getAthlete(id));
+        m.put("recommendations", protocol.getRecommendations(id));
+        m.put("alerts", protocol.getAlerts(id));
+        m.put("blocks", protocol.getActivityBlocks(id));
+        m.put("intoleranceFlags", protocol.getExertionIntoleranceFlags(id));
+        m.put("regressTriggers", protocol.getRegressTriggers(id));
+        m.put("exacerbations", protocol.getExacerbations(id));
+        m.put("persisting", protocol.getPersistingSymptoms(id));
+        m.put("rehabIndications", protocol.getCervicovestibularIndications(id));
+        m.put("locks", protocol.getLocks(id));
+        m.put("pediatricRtl", protocol.getPediatricRtl(id));
+        m.put("individualizedAssessments", protocol.getIndividualizedAssessments(id));
+        return m;
+    }
+
+    @GetMapping("/{id}/symptom-history")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #id)")
+    public Object symptomHistory(@PathVariable String id) {
+        return protocol.getSymptomHistory(id);
+    }
+
+    @GetMapping("/{id}/estimated-return")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #id)")
+    public Map<String, Object> estimatedReturn(@PathVariable String id) {
+        return protocol.estimateEarliestReturn(id);
     }
 
     @GetMapping("/{id}/allowed-activities")

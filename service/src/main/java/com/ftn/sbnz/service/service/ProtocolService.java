@@ -16,11 +16,14 @@ import com.ftn.sbnz.model.facts.PersistingSymptomsFlag;
 import com.ftn.sbnz.model.facts.ProgressionStatusFact;
 import com.ftn.sbnz.model.facts.ProtocolLockEvent;
 import com.ftn.sbnz.model.facts.RegressTrigger;
+import com.ftn.sbnz.model.facts.MinStepDwellRule;
 import com.ftn.sbnz.model.facts.StepRecommendation;
+import com.ftn.sbnz.service.audit.AuditService;
 import org.kie.api.runtime.KieSession;
 import org.kie.api.runtime.rule.QueryResults;
 import org.kie.api.runtime.rule.QueryResultsRow;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -36,31 +39,49 @@ import java.util.Set;
 public class ProtocolService {
 
     private final KnowledgeService knowledge;
+    private final AuditService audit;
 
     @Autowired
-    public ProtocolService(KnowledgeService knowledge) {
+    public ProtocolService(KnowledgeService knowledge, AuditService audit) {
         this.knowledge = knowledge;
+        this.audit = audit;
+    }
+
+    private String currentActor() {
+        try {
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            return auth == null ? "system" : auth.getName();
+        } catch (Exception e) { return "system"; }
     }
 
     public int reportSymptom(SymptomReportedEvent ev) {
         ensureTimestamp(ev::getTimestamp, ev::setTimestamp);
         KieSession s = knowledge.getSessionFor(ev.getAthleteId());
+        AuditService.Recorder rec = audit.attach(ev.getAthleteId(), s);
         s.insert(ev);
-        return s.fireAllRules();
+        int fired = s.fireAllRules();
+        audit.record(ev.getAthleteId(), "SymptomReported(" + ev.getSymptom() + "=" + ev.getLevel() + ")", currentActor(), rec);
+        return fired;
     }
 
     public int reportExertionAttempt(ExertionAttemptEvent ev) {
         ensureTimestamp(ev::getTimestamp, ev::setTimestamp);
         KieSession s = knowledge.getSessionFor(ev.getAthleteId());
+        AuditService.Recorder rec = audit.attach(ev.getAthleteId(), s);
         s.insert(ev);
-        return s.fireAllRules();
+        int fired = s.fireAllRules();
+        audit.record(ev.getAthleteId(), "ExertionAttempt(" + ev.getActivity() + ")", currentActor(), rec);
+        return fired;
     }
 
     public int reportSymptomDuringExertion(SymptomDuringExertionEvent ev) {
         ensureTimestamp(ev::getTimestamp, ev::setTimestamp);
         KieSession s = knowledge.getSessionFor(ev.getAthleteId());
+        AuditService.Recorder rec = audit.attach(ev.getAthleteId(), s);
         s.insert(ev);
-        return s.fireAllRules();
+        int fired = s.fireAllRules();
+        audit.record(ev.getAthleteId(), "SymptomDuringExertion(" + ev.getSymptom() + " +" + ev.getDelta() + ")", currentActor(), rec);
+        return fired;
     }
 
     public int recordStepAdvancement(StepAdvancementEvent ev) {
@@ -71,26 +92,35 @@ public class ProtocolService {
             a.setStepEnteredAt(LocalDateTime.now());
         }
         KieSession s = knowledge.getSessionFor(ev.getAthleteId());
+        AuditService.Recorder rec = audit.attach(ev.getAthleteId(), s);
         for (Object o : new ArrayList<>(s.getObjects(o -> o instanceof Athlete && ((Athlete) o).getId().equals(ev.getAthleteId())))) {
             s.delete(s.getFactHandle(o));
         }
         s.insert(a);
         s.insert(ev);
-        return s.fireAllRules();
+        int fired = s.fireAllRules();
+        audit.record(ev.getAthleteId(), "StepAdvancement(" + ev.getFromStep() + "->" + ev.getToStep() + ")", currentActor(), rec);
+        return fired;
     }
 
     public int recordMedicalClearance(MedicalClearanceEvent ev) {
         ensureTimestamp(ev::getTimestamp, ev::setTimestamp);
         KieSession s = knowledge.getSessionFor(ev.getAthleteId());
+        AuditService.Recorder rec = audit.attach(ev.getAthleteId(), s);
         s.insert(ev);
-        return s.fireAllRules();
+        int fired = s.fireAllRules();
+        audit.record(ev.getAthleteId(), "MedicalClearance(step " + ev.getClearanceForStep() + ")", currentActor(), rec);
+        return fired;
     }
 
     public int recordObjectiveTest(ObjectiveTestEvent ev) {
         ensureTimestamp(ev::getTimestamp, ev::setTimestamp);
         KieSession s = knowledge.getSessionFor(ev.getAthleteId());
+        AuditService.Recorder rec = audit.attach(ev.getAthleteId(), s);
         s.insert(ev);
-        return s.fireAllRules();
+        int fired = s.fireAllRules();
+        audit.record(ev.getAthleteId(), "ObjectiveTest(" + ev.getTestType() + "=" + ev.getValue() + ")", currentActor(), rec);
+        return fired;
     }
 
     public List<StepRecommendation> getRecommendations(String aid) {
@@ -133,6 +163,24 @@ public class ProtocolService {
         return queryFacts(aid, ProtocolLockEvent.class, f -> f.getAthleteId().equals(aid));
     }
 
+    public List<com.ftn.sbnz.model.facts.PediatricRtlPending> getPediatricRtl(String aid) {
+        return queryFacts(aid, com.ftn.sbnz.model.facts.PediatricRtlPending.class, f -> f.getAthleteId().equals(aid));
+    }
+
+    public List<com.ftn.sbnz.model.facts.IndividualizedAssessmentRequired> getIndividualizedAssessments(String aid) {
+        return queryFacts(aid, com.ftn.sbnz.model.facts.IndividualizedAssessmentRequired.class, f -> f.getAthleteId().equals(aid));
+    }
+
+    public List<SymptomReportedEvent> getSymptomHistory(String aid) {
+        KieSession s = knowledge.getSessionFor(aid);
+        List<SymptomReportedEvent> out = new ArrayList<>();
+        for (Object o : s.getObjects(o -> o instanceof SymptomReportedEvent && ((SymptomReportedEvent) o).getAthleteId().equals(aid))) {
+            out.add((SymptomReportedEvent) o);
+        }
+        out.sort((a, b) -> a.getTimestamp().compareTo(b.getTimestamp()));
+        return out;
+    }
+
     public ReadinessResult readyToAdvance(String aid, int targetStep) {
         KieSession s = knowledge.getSessionFor(aid);
         s.fireAllRules();
@@ -161,6 +209,30 @@ public class ProtocolService {
             }
         }
         return new ReadinessResult(ready, missing);
+    }
+
+    public java.util.Map<String, Object> estimateEarliestReturn(String aid) {
+        Athlete a = knowledge.getAthlete(aid);
+        if (a == null) return java.util.Map.of("error", "Athlete not found");
+        KieSession s = knowledge.getSessionFor(aid);
+        s.fireAllRules();
+        int minHours = 24;
+        for (Object o : s.getObjects(o -> o instanceof MinStepDwellRule && ((MinStepDwellRule) o).getAthleteId().equals(aid))) {
+            minHours = ((MinStepDwellRule) o).getMinHours();
+        }
+        int stepsRemaining = Math.max(0, 6 - a.getCurrentStep());
+        int totalHours = stepsRemaining * minHours;
+        java.time.LocalDateTime earliest = java.time.LocalDateTime.now().plusHours(totalHours);
+        return java.util.Map.of(
+                "currentStep", a.getCurrentStep(),
+                "stepsRemaining", stepsRemaining,
+                "minHoursPerStep", minHours,
+                "earliestReturn", earliest.toString(),
+                "assumesNoSetbacks", true,
+                "note", stepsRemaining == 0
+                    ? "Already at step 6 — eligible for return"
+                    : "Optimistic estimate assuming each step is cleared at the minimum dwell with no setbacks"
+        );
     }
 
     public Set<String> allowedActivitiesForCurrentStep(String aid) {

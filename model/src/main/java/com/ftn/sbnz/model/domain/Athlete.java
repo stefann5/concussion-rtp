@@ -34,6 +34,7 @@ public class Athlete implements Serializable {
     private int currentStep;
     private LocalDateTime stepEnteredAt;
     private LocalDateTime injuryAt;
+    private boolean returnToLearnComplete;
 
     public Athlete() {}
 
@@ -84,6 +85,9 @@ public class Athlete implements Serializable {
 
     public LocalDateTime getInjuryAt() { return injuryAt; }
     public void setInjuryAt(LocalDateTime injuryAt) { this.injuryAt = injuryAt; }
+
+    public boolean isReturnToLearnComplete() { return returnToLearnComplete; }
+    public void setReturnToLearnComplete(boolean returnToLearnComplete) { this.returnToLearnComplete = returnToLearnComplete; }
 
     public int baselineFor(String symptom) {
         return baselineSymptoms.getOrDefault(symptom, 0);

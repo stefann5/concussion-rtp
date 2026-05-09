@@ -1,0 +1,27 @@
+package rules.fc;
+
+import com.ftn.sbnz.model.domain.Athlete;
+import com.ftn.sbnz.model.enums.HistoryFlag;
+import com.ftn.sbnz.model.facts.IndividualizedAssessmentRequired;
+
+rule "Repeated concussion requires individualized assessment before contact phases"
+    when
+        $a: Athlete(historyFlag == HistoryFlag.MULTIPLE,
+                    currentStep >= 3,
+                    $aid: id)
+        not IndividualizedAssessmentRequired(athleteId == $aid)
+    then
+        insert(new IndividualizedAssessmentRequired($aid,
+            "Multiple previous concussions — individualized clinician assessment required before head-impact phases (Amsterdam 2022)"));
+end
+
+rule "CISG risk factor cluster lengthens recovery"
+    when
+        $a: Athlete($aid: id,
+                    riskFactors.migraine == true || riskFactors.anxiety == true
+                    || riskFactors.adhd == true || riskFactors.learningDifficulties == true)
+        not IndividualizedAssessmentRequired(athleteId == $aid, reason str[startsWith] "CISG")
+    then
+        insert(new IndividualizedAssessmentRequired($aid,
+            "CISG risk factor present (migraine/anxiety/ADHD/learning) — recovery may be prolonged, monitor more closely"));
+end

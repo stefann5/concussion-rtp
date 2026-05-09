@@ -5,6 +5,7 @@ import com.ftn.sbnz.model.facts.ParentCategory;
 import com.ftn.sbnz.model.template.AllowedActivityTemplate;
 import com.ftn.sbnz.model.template.MinStepDwellTemplate;
 import com.ftn.sbnz.model.template.RedFlagSeverityTemplate;
+import com.ftn.sbnz.service.audit.AuditService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.drools.template.ObjectDataCompiler;
@@ -31,13 +32,16 @@ import java.util.concurrent.ConcurrentHashMap;
 public class KnowledgeService {
 
     private final KieServices kieServices;
+    private final AuditService auditService;
     private KieContainer container;
     private final Map<String, KieSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, Athlete> athletes = new ConcurrentHashMap<>();
+    private final Map<String, String> templateCsvOverrides = new ConcurrentHashMap<>();
 
     @Autowired
-    public KnowledgeService(KieServices kieServices) {
+    public KnowledgeService(KieServices kieServices, AuditService auditService) {
         this.kieServices = kieServices;
+        this.auditService = auditService;
     }
 
     @PostConstruct
@@ -57,7 +61,9 @@ public class KnowledgeService {
                     "rules/fc/ProgressionDecision.drl",
                     "rules/fc/ActivityValidation.drl",
                     "rules/fc/ActivityCategory.drl",
-                    "rules/fc/ReadinessQuery.drl"
+                    "rules/fc/ReadinessQuery.drl",
+                    "rules/fc/PediatricRTL.drl",
+                    "rules/fc/IndividualizedAssessment.drl"
             };
             for (String path : drlPaths) {
                 kfs.write("src/main/resources/" + path, readClasspath("/" + path));
@@ -85,8 +91,9 @@ public class KnowledgeService {
     }
 
     private <T> String compileTemplate(String drtPath, String csvPath, RowParser<T> parser) throws IOException {
+        String csv = readCsvWithOverride(csvPath);
         try (InputStream drtStream = getClass().getResourceAsStream(drtPath);
-             BufferedReader r = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(csvPath), StandardCharsets.UTF_8))) {
+             BufferedReader r = new BufferedReader(new java.io.StringReader(csv))) {
             List<T> data = new ArrayList<>();
             String line;
             boolean first = true;
@@ -99,6 +106,40 @@ public class KnowledgeService {
             ObjectDataCompiler compiler = new ObjectDataCompiler();
             return compiler.compile(data, drtStream);
         }
+    }
+
+    private String readCsvWithOverride(String csvPath) throws IOException {
+        String override = templateCsvOverrides.get(csvPath);
+        if (override != null) return override;
+        return readClasspath(csvPath);
+    }
+
+    public String getTemplateCsv(String name) {
+        String path = pathForTemplate(name);
+        if (path == null) return null;
+        try { return readCsvWithOverride(path); }
+        catch (IOException e) { return null; }
+    }
+
+    public synchronized void updateTemplateCsv(String name, String csv) {
+        String path = pathForTemplate(name);
+        if (path == null) throw new IllegalArgumentException("Unknown template: " + name);
+        templateCsvOverrides.put(path, csv);
+        sessions.values().forEach(KieSession::dispose);
+        sessions.clear();
+        this.container = buildContainer();
+        for (Athlete a : athletes.values()) {
+            getSessionFor(a.getId());
+        }
+    }
+
+    private String pathForTemplate(String name) {
+        return switch (name) {
+            case "MinStepDwell" -> "/templates/MinStepDwell.csv";
+            case "RedFlagSeverity" -> "/templates/RedFlagSeverity.csv";
+            case "AllowedActivity" -> "/templates/AllowedActivity.csv";
+            default -> null;
+        };
     }
 
     private MinStepDwellTemplate parseDwellRow(String[] c) {
@@ -136,6 +177,7 @@ public class KnowledgeService {
 
     private KieSession createSessionFor(String athleteId) {
         KieSession session = container.newKieSession();
+        auditService.attach(athleteId, session);
         seedActivityTree(session);
         Athlete athlete = athletes.get(athleteId);
         if (athlete != null) {
