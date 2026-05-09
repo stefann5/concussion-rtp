@@ -12,6 +12,7 @@ dist/
 .angular/
 .env
 *.log
+sb.log
 HELP.md
 mvnw
 mvnw.cmd
