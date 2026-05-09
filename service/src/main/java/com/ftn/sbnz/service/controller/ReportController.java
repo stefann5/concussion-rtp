@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/reports")
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DOCTOR','ADMIN')")
 public class ReportController {
 
     private final KnowledgeService knowledge;

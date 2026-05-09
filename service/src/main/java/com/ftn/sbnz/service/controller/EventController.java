@@ -8,6 +8,7 @@ import com.ftn.sbnz.model.events.SymptomDuringExertionEvent;
 import com.ftn.sbnz.model.events.SymptomReportedEvent;
 import com.ftn.sbnz.service.service.ProtocolService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,36 +28,42 @@ public class EventController {
     }
 
     @PostMapping("/symptom")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId)")
     public Map<String, Object> symptom(@RequestBody SymptomReportedEvent ev) {
         int fired = protocol.reportSymptom(ev);
         return Map.of("rulesFired", fired);
     }
 
     @PostMapping("/exertion-attempt")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId)")
     public Map<String, Object> exertionAttempt(@RequestBody ExertionAttemptEvent ev) {
         int fired = protocol.reportExertionAttempt(ev);
         return Map.of("rulesFired", fired);
     }
 
     @PostMapping("/symptom-during-exertion")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId)")
     public Map<String, Object> symptomDuringExertion(@RequestBody SymptomDuringExertionEvent ev) {
         int fired = protocol.reportSymptomDuringExertion(ev);
         return Map.of("rulesFired", fired);
     }
 
     @PostMapping("/step-advancement")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN')")
     public Map<String, Object> stepAdvancement(@RequestBody StepAdvancementEvent ev) {
         int fired = protocol.recordStepAdvancement(ev);
         return Map.of("rulesFired", fired);
     }
 
     @PostMapping("/medical-clearance")
+    @PreAuthorize("hasRole('DOCTOR')")
     public Map<String, Object> medicalClearance(@RequestBody MedicalClearanceEvent ev) {
         int fired = protocol.recordMedicalClearance(ev);
         return Map.of("rulesFired", fired);
     }
 
     @PostMapping("/objective-test")
+    @PreAuthorize("hasRole('DOCTOR')")
     public Map<String, Object> objectiveTest(@RequestBody ObjectiveTestEvent ev) {
         int fired = protocol.recordObjectiveTest(ev);
         return Map.of("rulesFired", fired);
