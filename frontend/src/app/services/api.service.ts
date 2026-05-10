@@ -31,7 +31,10 @@ export class ApiService {
 
   reportSymptom(ev: SymptomReportedEvent) { return this.http.post(`${this.base}/events/symptom`, ev); }
   dailyCheck(athleteId: string, levels: { [symptom: string]: number }) {
-    return this.http.post<{ submitted: number; rulesFired: number }>(`${this.base}/events/daily-check`, { athleteId, levels });
+    return this.http.post<{ submitted: number; submittedAt: string }>(`${this.base}/events/daily-check`, { athleteId, levels });
+  }
+  dailyCheckToday(athleteId: string) {
+    return this.http.get<{ submitted: boolean; submittedAt?: string; levels?: { [s: string]: number } }>(`${this.base}/athletes/${athleteId}/daily-check-today`);
   }
   reportExertion(ev: ExertionAttemptEvent) { return this.http.post(`${this.base}/events/exertion-attempt`, ev); }
   reportSymptomDuringExertion(ev: SymptomDuringExertionEvent) { return this.http.post(`${this.base}/events/symptom-during-exertion`, ev); }

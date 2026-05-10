@@ -26,20 +26,35 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class ProtocolService {
 
     private final KnowledgeService knowledge;
     private final AuditService audit;
+
+    public static class DailyCheckRecord {
+        public LocalDateTime submittedAt;
+        public Map<String, Integer> levels;
+        public DailyCheckRecord(LocalDateTime at, Map<String, Integer> levels) {
+            this.submittedAt = at; this.levels = levels;
+        }
+    }
+
+    private final Map<String, Map<LocalDate, DailyCheckRecord>> dailyChecks = new ConcurrentHashMap<>();
 
     @Autowired
     public ProtocolService(KnowledgeService knowledge, AuditService audit) {
@@ -62,6 +77,32 @@ public class ProtocolService {
         int fired = s.fireAllRules();
         audit.record(ev.getAthleteId(), "SymptomReported(" + ev.getSymptom() + "=" + ev.getLevel() + ")", currentActor(), rec);
         return fired;
+    }
+
+    public boolean hasDailyCheckToday(String athleteId) {
+        return getTodaysDailyCheck(athleteId) != null;
+    }
+
+    public DailyCheckRecord getTodaysDailyCheck(String athleteId) {
+        Map<LocalDate, DailyCheckRecord> per = dailyChecks.get(athleteId);
+        if (per == null) return null;
+        return per.get(LocalDate.now());
+    }
+
+    public DailyCheckRecord submitDailyCheck(String athleteId, Map<String, Integer> levels) {
+        LocalDate today = LocalDate.now();
+        Map<LocalDate, DailyCheckRecord> per = dailyChecks.computeIfAbsent(athleteId, k -> new ConcurrentHashMap<>());
+        if (per.containsKey(today)) {
+            throw new IllegalStateException("Daily check already submitted today");
+        }
+        Map<String, Integer> snapshot = new LinkedHashMap<>();
+        levels.forEach((sym, lvl) -> snapshot.put(sym, lvl == null ? 0 : lvl));
+        DailyCheckRecord record = new DailyCheckRecord(LocalDateTime.now(), snapshot);
+        per.put(today, record);
+        snapshot.forEach((sym, lvl) -> {
+            if (lvl > 0) reportSymptom(new SymptomReportedEvent(athleteId, sym, lvl, null));
+        });
+        return record;
     }
 
     public int reportExertionAttempt(ExertionAttemptEvent ev) {

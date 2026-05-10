@@ -99,6 +99,18 @@ public class AthleteController {
         return protocol.getSymptomHistory(id);
     }
 
+    @GetMapping("/{id}/daily-check-today")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #id)")
+    public Map<String, Object> dailyCheckToday(@PathVariable String id) {
+        var record = protocol.getTodaysDailyCheck(id);
+        if (record == null) return Map.of("submitted", false);
+        return Map.of(
+                "submitted", true,
+                "submittedAt", record.submittedAt.toString(),
+                "levels", record.levels
+        );
+    }
+
     @GetMapping("/{id}/estimated-return")
     @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #id)")
     public Map<String, Object> estimatedReturn(@PathVariable String id) {

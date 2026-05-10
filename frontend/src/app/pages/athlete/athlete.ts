@@ -113,22 +113,26 @@ interface DuringSymptom {
             </div>
           </section>
 
-          <!-- Daily SCAT6 check: 22 sliders -->
+          <!-- Daily SCAT6 check: 22 sliders, locked once submitted today -->
           <section class="bg-white border border-neutral-200 rounded-lg p-4">
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0">Daily symptom check (at rest)</h3>
-              <button class="text-xs text-neutral-500 hover:text-neutral-900" (click)="resetDaily()">Reset</button>
+              <button *ngIf="!dailyLocked()" class="text-xs text-neutral-500 hover:text-neutral-900" (click)="resetDaily()">Reset</button>
+              <span *ngIf="dailyLocked()" class="text-xs text-emerald-700">Submitted {{ dailySubmittedAt() | date:'shortTime' }}</span>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3" [class.opacity-70]="dailyLocked()">
               <div *ngFor="let s of symptomList" class="flex items-center gap-3">
                 <span class="text-xs text-neutral-700 w-44 shrink-0">{{ formatSymptom(s) }}</span>
-                <p-slider [(ngModel)]="dailyLevels[s]" [min]="0" [max]="6" [step]="1" class="flex-1"></p-slider>
+                <p-slider [(ngModel)]="dailyLevels[s]" [min]="0" [max]="6" [step]="1" [disabled]="dailyLocked()" class="flex-1"></p-slider>
                 <span class="text-xs tabular-nums w-4 text-right" [class.text-neutral-400]="dailyLevels[s] === 0">{{ dailyLevels[s] || 0 }}</span>
               </div>
             </div>
             <div class="mt-4 flex items-center justify-between">
-              <p class="text-xs text-neutral-500 m-0">{{ dailyNonZeroCount() }} symptom(s) reported</p>
-              <p-button label="Submit daily check" size="small" (onClick)="submitDailyCheck()" [disabled]="dailyNonZeroCount() === 0"></p-button>
+              <p class="text-xs text-neutral-500 m-0">
+                <ng-container *ngIf="!dailyLocked()">{{ dailyNonZeroCount() }} symptom(s) selected</ng-container>
+                <ng-container *ngIf="dailyLocked()">Today's check is locked. Next submission allowed tomorrow.</ng-container>
+              </p>
+              <p-button *ngIf="!dailyLocked()" label="Submit daily check" size="small" (onClick)="submitDailyCheck()"></p-button>
             </div>
           </section>
 
@@ -137,8 +141,10 @@ interface DuringSymptom {
             <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0 mb-3">Exertion log</h3>
             <div class="space-y-3">
               <label class="flex flex-col gap-1.5">
-                <span class="text-xs font-medium text-neutral-600">Activity</span>
-                <input pInputText [(ngModel)]="exertion.activity" placeholder="e.g. JOGGING, INDIVIDUAL_PASSING_DRILL" class="w-full"/>
+                <span class="text-xs font-medium text-neutral-600">Activity (allowed for current step)</span>
+                <p-select [(ngModel)]="exertion.activity" [options]="activityOptions()" placeholder="Pick an activity" styleClass="w-full"
+                          [filter]="true" filterBy="label" [showClear]="true"></p-select>
+                <span *ngIf="!allowed().length" class="text-xs text-amber-600">No allowed activities for the current step.</span>
               </label>
 
               <div class="flex items-center justify-between p-3 rounded border border-neutral-200 bg-neutral-50">
@@ -333,11 +339,17 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
 
   symptomList = SCAT6_SYMPTOMS;
   dailyLevels: { [key: string]: number } = {};
+  dailyLocked = signal<boolean>(false);
+  dailySubmittedAt = signal<string | null>(null);
 
   exertion: { activity: string } = { activity: '' };
   hadSymptomsDuring = false;
   newDuringSymptom = '';
   duringSymptoms: DuringSymptom[] = [];
+
+  activityOptions = computed(() =>
+    this.allowed().map(a => ({ label: this.formatSymptom(a), value: a }))
+  );
 
   advanceInput = { toStep: 2 };
   clearanceInput = { clearanceForStep: 4, physicianId: '', note: '' };
@@ -408,6 +420,16 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
     this.api.allowedActivities(aid).subscribe(r => this.allowed.set(r.activities));
     this.api.symptomHistory(aid).subscribe(h => this.history.set(h));
     this.api.estimatedReturn(aid).subscribe(e => this.estimate.set(e));
+    this.api.dailyCheckToday(aid).subscribe(r => {
+      if (r.submitted) {
+        this.dailyLocked.set(true);
+        this.dailySubmittedAt.set(r.submittedAt ?? null);
+        SCAT6_SYMPTOMS.forEach(s => this.dailyLevels[s] = r.levels?.[s] ?? 0);
+      } else {
+        this.dailyLocked.set(false);
+        this.dailySubmittedAt.set(null);
+      }
+    });
     if (this.canDoctor()) {
       this.api.auditFor(aid).subscribe(a => this.audit.set(a));
     }
@@ -422,16 +444,20 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   submitDailyCheck() {
-    const count = this.dailyNonZeroCount();
-    if (count === 0) return;
+    if (this.dailyLocked()) return;
     this.api.dailyCheck(this.athleteId(), this.dailyLevels).subscribe({
       next: r => {
         this.toast.add({ severity: 'success', summary: 'Daily check submitted',
-          detail: `${r.submitted} symptom(s) recorded · ${r.rulesFired} rule(s) fired`, life: 4000 });
-        this.resetDaily();
+          detail: `${r.submitted} symptom(s) recorded`, life: 4000 });
         this.refresh();
       },
-      error: e => this.toast.add({ severity: 'error', summary: 'Submission failed', detail: e.error?.error ?? 'Unknown error', life: 4000 })
+      error: e => {
+        const detail = e.status === 409
+          ? 'Already submitted today — only one check per day is allowed'
+          : (e.error?.error ?? 'Unknown error');
+        this.toast.add({ severity: 'error', summary: 'Submission failed', detail, life: 4000 });
+        if (e.status === 409) this.refresh();
+      }
     });
   }
 

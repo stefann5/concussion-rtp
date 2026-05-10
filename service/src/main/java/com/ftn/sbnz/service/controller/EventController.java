@@ -36,18 +36,18 @@ public class EventController {
 
     @PostMapping("/daily-check")
     @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #req.athleteId)")
-    public Map<String, Object> dailyCheck(@RequestBody DailyCheckRequest req) {
-        int submitted = 0;
-        int fired = 0;
-        if (req.getLevels() != null) {
-            for (Map.Entry<String, Integer> e : req.getLevels().entrySet()) {
-                int level = e.getValue() == null ? 0 : e.getValue();
-                if (level <= 0) continue;
-                fired += protocol.reportSymptom(new SymptomReportedEvent(req.getAthleteId(), e.getKey(), level, null));
-                submitted++;
-            }
+    public org.springframework.http.ResponseEntity<?> dailyCheck(@RequestBody DailyCheckRequest req) {
+        if (req.getLevels() == null) return org.springframework.http.ResponseEntity.badRequest().body(Map.of("error", "levels required"));
+        try {
+            var record = protocol.submitDailyCheck(req.getAthleteId(), req.getLevels());
+            int reported = (int) record.levels.values().stream().filter(v -> v != null && v > 0).count();
+            return org.springframework.http.ResponseEntity.ok(Map.of(
+                "submitted", reported,
+                "submittedAt", record.submittedAt.toString()
+            ));
+        } catch (IllegalStateException e) {
+            return org.springframework.http.ResponseEntity.status(409).body(Map.of("error", e.getMessage()));
         }
-        return Map.of("submitted", submitted, "rulesFired", fired);
     }
 
     @PostMapping("/exertion-attempt")
