@@ -43,10 +43,6 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
-  registerAthleteAccount(athleteId: string, username: string, password: string, displayName: string) {
-    return this.http.post(`${this.base}/register-athlete-account`, { athleteId, username, password, displayName });
-  }
-
   token(): string | null {
     return this.state()?.token ?? null;
   }

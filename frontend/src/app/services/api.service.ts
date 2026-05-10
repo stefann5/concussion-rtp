@@ -14,7 +14,9 @@ export class ApiService {
 
   listAthletes(): Observable<Athlete[]> { return this.http.get<Athlete[]>(`${this.base}/athletes`); }
   getAthlete(id: string): Observable<Athlete> { return this.http.get<Athlete>(`${this.base}/athletes/${id}`); }
-  registerAthlete(a: Athlete): Observable<Athlete> { return this.http.post<Athlete>(`${this.base}/athletes`, a); }
+  registerAthlete(payload: { athlete: Athlete; username: string; password: string }): Observable<Athlete> {
+    return this.http.post<Athlete>(`${this.base}/athletes`, payload);
+  }
   dashboard(id: string): Observable<Dashboard> { return this.http.get<Dashboard>(`${this.base}/athletes/${id}/dashboard`); }
   allowedActivities(id: string): Observable<{ activities: string[] }> { return this.http.get<{ activities: string[] }>(`${this.base}/athletes/${id}/allowed-activities`); }
   readyToAdvance(id: string, targetStep: number): Observable<ReadinessResult> {

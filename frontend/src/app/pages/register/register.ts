@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -7,14 +7,14 @@ import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { SelectModule } from 'primeng/select';
 import { CheckboxModule } from 'primeng/checkbox';
+import { MessageModule } from 'primeng/message';
 import { ApiService } from '../../services/api.service';
-import { AuthService } from '../../auth/auth.service';
 import { Athlete, STEP_NAMES } from '../../models/domain';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, InputNumberModule, SelectModule, CheckboxModule],
+  imports: [CommonModule, FormsModule, ButtonModule, InputTextModule, InputNumberModule, SelectModule, CheckboxModule, MessageModule],
   template: `
     <div class="max-w-3xl">
       <h2 class="text-xl font-semibold m-0 mb-6">Register athlete</h2>
@@ -22,10 +22,6 @@ import { Athlete, STEP_NAMES } from '../../models/domain';
       <div class="bg-white border border-neutral-200 rounded-lg p-6 mb-4">
         <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0 mb-4">Profile</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <label class="flex flex-col gap-1.5">
-            <span class="text-xs font-medium text-neutral-600">Athlete ID</span>
-            <input pInputText [(ngModel)]="athlete.id"/>
-          </label>
           <label class="flex flex-col gap-1.5">
             <span class="text-xs font-medium text-neutral-600">Full name</span>
             <input pInputText [(ngModel)]="athlete.name"/>
@@ -97,7 +93,7 @@ import { Athlete, STEP_NAMES } from '../../models/domain';
 
       <div class="bg-white border border-neutral-200 rounded-lg p-6 mb-4">
         <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0 mb-1">Athlete login</h3>
-        <p class="text-xs text-neutral-500 m-0 mb-4">Optional. Provision credentials so the athlete can sign in and see their own protocol.</p>
+        <p class="text-xs text-neutral-500 m-0 mb-4">Required. The athlete will use these credentials to sign in and view their own protocol.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label class="flex flex-col gap-1.5">
             <span class="text-xs font-medium text-neutral-600">Username</span>
@@ -110,8 +106,10 @@ import { Athlete, STEP_NAMES } from '../../models/domain';
         </div>
       </div>
 
+      <p-message *ngIf="error()" severity="error" styleClass="w-full mb-4">{{ error() }}</p-message>
+
       <div class="flex gap-2">
-        <p-button label="Register" (onClick)="submit()" [disabled]="!athlete.id || !athlete.name"></p-button>
+        <p-button label="Register" (onClick)="submit()" [disabled]="!isValid()"></p-button>
         <p-button label="Cancel" severity="secondary" [text]="true" (onClick)="cancel()"></p-button>
       </div>
     </div>
@@ -119,10 +117,10 @@ import { Athlete, STEP_NAMES } from '../../models/domain';
 })
 export class RegisterComponent {
   private api = inject(ApiService);
-  private auth = inject(AuthService);
   private router = inject(Router);
 
   account = { username: '', password: '' };
+  error = signal<string | null>(null);
 
   athlete: Athlete = {
     id: '',
@@ -151,14 +149,20 @@ export class RegisterComponent {
   ];
   stepOptions = Object.entries(STEP_NAMES).map(([k, v]) => ({ label: `Step ${k} — ${v}`, value: parseInt(k, 10) }));
 
+  isValid(): boolean {
+    return !!this.athlete.name && !!this.athlete.sport
+        && !!this.account.username && !!this.account.password;
+  }
+
   submit() {
-    this.api.registerAthlete(this.athlete).subscribe(a => {
-      if (this.account.username && this.account.password) {
-        this.auth.registerAthleteAccount(a.id, this.account.username, this.account.password, a.name)
-          .subscribe(() => this.router.navigate(['/athletes', a.id]));
-      } else {
-        this.router.navigate(['/athletes', a.id]);
-      }
+    this.error.set(null);
+    this.api.registerAthlete({
+      athlete: this.athlete,
+      username: this.account.username,
+      password: this.account.password
+    }).subscribe({
+      next: a => this.router.navigate(['/athletes', a.id]),
+      error: e => this.error.set(e.error?.error ?? 'Registration failed')
     });
   }
 
