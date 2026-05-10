@@ -34,6 +34,22 @@ public class EventController {
         return Map.of("rulesFired", fired);
     }
 
+    @PostMapping("/daily-check")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #req.athleteId)")
+    public Map<String, Object> dailyCheck(@RequestBody DailyCheckRequest req) {
+        int submitted = 0;
+        int fired = 0;
+        if (req.getLevels() != null) {
+            for (Map.Entry<String, Integer> e : req.getLevels().entrySet()) {
+                int level = e.getValue() == null ? 0 : e.getValue();
+                if (level <= 0) continue;
+                fired += protocol.reportSymptom(new SymptomReportedEvent(req.getAthleteId(), e.getKey(), level, null));
+                submitted++;
+            }
+        }
+        return Map.of("submitted", submitted, "rulesFired", fired);
+    }
+
     @PostMapping("/exertion-attempt")
     @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId)")
     public Map<String, Object> exertionAttempt(@RequestBody ExertionAttemptEvent ev) {
@@ -46,6 +62,21 @@ public class EventController {
     public Map<String, Object> symptomDuringExertion(@RequestBody SymptomDuringExertionEvent ev) {
         int fired = protocol.reportSymptomDuringExertion(ev);
         return Map.of("rulesFired", fired);
+    }
+
+    @PostMapping("/exertion-with-symptoms")
+    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #req.exertion.athleteId)")
+    public Map<String, Object> exertionWithSymptoms(@RequestBody ExertionWithSymptomsRequest req) {
+        int fired = protocol.reportExertionAttempt(req.getExertion());
+        int symptomCount = 0;
+        if (req.getSymptoms() != null) {
+            for (SymptomDuringExertionEvent ev : req.getSymptoms()) {
+                if (ev.getAthleteId() == null) ev.setAthleteId(req.getExertion().getAthleteId());
+                fired += protocol.reportSymptomDuringExertion(ev);
+                symptomCount++;
+            }
+        }
+        return Map.of("symptomCount", symptomCount, "rulesFired", fired);
     }
 
     @PostMapping("/step-advancement")

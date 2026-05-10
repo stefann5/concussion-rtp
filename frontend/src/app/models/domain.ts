@@ -42,7 +42,6 @@ export interface SymptomReportedEvent {
 export interface ExertionAttemptEvent {
   athleteId: string;
   activity: string;
-  intensity: string;
   timestamp?: string;
 }
 

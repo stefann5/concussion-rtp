@@ -15,15 +15,13 @@ public class ExertionAttemptEvent implements Serializable {
 
     private String athleteId;
     private String activity;
-    private String intensity;
     private Date timestamp;
 
     public ExertionAttemptEvent() {}
 
-    public ExertionAttemptEvent(String athleteId, String activity, String intensity, Date timestamp) {
+    public ExertionAttemptEvent(String athleteId, String activity, Date timestamp) {
         this.athleteId = athleteId;
         this.activity = activity;
-        this.intensity = intensity;
         this.timestamp = timestamp;
     }
 
@@ -32,9 +30,6 @@ public class ExertionAttemptEvent implements Serializable {
 
     public String getActivity() { return activity; }
     public void setActivity(String activity) { this.activity = activity; }
-
-    public String getIntensity() { return intensity; }
-    public void setIntensity(String intensity) { this.intensity = intensity; }
 
     public Date getTimestamp() { return timestamp; }
     public void setTimestamp(Date timestamp) { this.timestamp = timestamp; }

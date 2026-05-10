@@ -5,10 +5,13 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { SelectModule } from 'primeng/select';
-import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { MessageModule } from 'primeng/message';
 import { TableModule } from 'primeng/table';
+import { SliderModule } from 'primeng/slider';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
+import { ToastModule } from 'primeng/toast';
+import { MessageService } from 'primeng/api';
 import Chart from 'chart.js/auto';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../auth/auth.service';
@@ -17,15 +20,23 @@ import {
   SCAT6_SYMPTOMS, RED_FLAG_TYPES, STEP_NAMES
 } from '../../models/domain';
 
+interface DuringSymptom {
+  symptom: string;
+  delta: number;
+  durationMinutes: number;
+}
+
 @Component({
   selector: 'app-athlete',
   standalone: true,
   imports: [
     CommonModule, RouterLink, FormsModule,
-    ButtonModule, TagModule, SelectModule,
-    InputNumberModule, InputTextModule, MessageModule, TableModule
+    ButtonModule, TagModule, SelectModule, InputTextModule, MessageModule, TableModule,
+    SliderModule, ToggleSwitchModule, ToastModule
   ],
+  providers: [MessageService],
   template: `
+    <p-toast position="bottom-right"></p-toast>
     <div *ngIf="dashboard() as d">
       <div class="flex items-start justify-between mb-6">
         <div>
@@ -41,7 +52,25 @@ import {
         </div>
       </div>
 
-      <div *ngFor="let a of d.alerts" class="mb-3 px-4 py-3 rounded-lg border border-red-200 bg-red-50">
+      <!-- Emergency signs panel: prominent, compact, distinct -->
+      <section class="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h3 class="text-xs uppercase tracking-wide text-red-700 m-0 font-semibold">Emergency signs</h3>
+            <p class="text-xs text-red-600 m-0 mt-0.5">Tap to immediately flag and trigger emergency protocol.</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+          <button *ngFor="let f of redFlagOptions"
+                  type="button"
+                  (click)="triggerRedFlag(f)"
+                  class="text-xs px-2 py-1.5 rounded border border-red-300 bg-white hover:bg-red-100 text-red-800 transition-colors">
+            {{ f.replaceAll('_', ' ') | titlecase }}
+          </button>
+        </div>
+      </section>
+
+      <div *ngFor="let a of d.alerts" class="mb-3 px-4 py-3 rounded-lg border border-red-300 bg-red-50">
         <div class="text-sm font-medium text-red-900">{{ a.message }}</div>
         <div class="text-xs text-red-700 mt-0.5">{{ a.actionType }} · {{ a.severity }}</div>
       </div>
@@ -84,40 +113,69 @@ import {
             </div>
           </section>
 
+          <!-- Daily SCAT6 check: 22 sliders -->
           <section class="bg-white border border-neutral-200 rounded-lg p-4">
-            <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0 mb-4">Daily input</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 class="text-sm font-medium m-0 mb-2">Symptom (SCAT6)</h4>
-                <div class="space-y-2">
-                  <p-select [(ngModel)]="symInput.symptom" [options]="symptomOptions" placeholder="Symptom" styleClass="w-full"></p-select>
-                  <p-inputNumber [(ngModel)]="symInput.level" [min]="0" [max]="6" placeholder="Level 0–6" styleClass="w-full"></p-inputNumber>
-                  <p-button label="Submit" size="small" (onClick)="reportSymptom()" [disabled]="!symInput.symptom"></p-button>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0">Daily symptom check (at rest)</h3>
+              <button class="text-xs text-neutral-500 hover:text-neutral-900" (click)="resetDaily()">Reset</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+              <div *ngFor="let s of symptomList" class="flex items-center gap-3">
+                <span class="text-xs text-neutral-700 w-44 shrink-0">{{ formatSymptom(s) }}</span>
+                <p-slider [(ngModel)]="dailyLevels[s]" [min]="0" [max]="6" [step]="1" class="flex-1"></p-slider>
+                <span class="text-xs tabular-nums w-4 text-right" [class.text-neutral-400]="dailyLevels[s] === 0">{{ dailyLevels[s] || 0 }}</span>
+              </div>
+            </div>
+            <div class="mt-4 flex items-center justify-between">
+              <p class="text-xs text-neutral-500 m-0">{{ dailyNonZeroCount() }} symptom(s) reported</p>
+              <p-button label="Submit daily check" size="small" (onClick)="submitDailyCheck()" [disabled]="dailyNonZeroCount() === 0"></p-button>
+            </div>
+          </section>
+
+          <!-- Exertion form: attempt + optional symptoms -->
+          <section class="bg-white border border-neutral-200 rounded-lg p-4">
+            <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0 mb-3">Exertion log</h3>
+            <div class="space-y-3">
+              <label class="flex flex-col gap-1.5">
+                <span class="text-xs font-medium text-neutral-600">Activity</span>
+                <input pInputText [(ngModel)]="exertion.activity" placeholder="e.g. JOGGING, INDIVIDUAL_PASSING_DRILL" class="w-full"/>
+              </label>
+
+              <div class="flex items-center justify-between p-3 rounded border border-neutral-200 bg-neutral-50">
+                <div>
+                  <p class="text-sm font-medium m-0">Did symptoms occur during this exertion?</p>
+                  <p class="text-xs text-neutral-500 m-0 mt-0.5">Toggle on to record provoked symptoms.</p>
+                </div>
+                <p-toggleswitch [(ngModel)]="hadSymptomsDuring"></p-toggleswitch>
+              </div>
+
+              <div *ngIf="hadSymptomsDuring" class="space-y-3 pl-3 border-l-2 border-neutral-200">
+                <div class="flex items-center gap-2">
+                  <p-select [(ngModel)]="newDuringSymptom" [options]="symptomSelectOptions" placeholder="Add symptom" styleClass="flex-1"></p-select>
+                  <p-button label="Add" size="small" severity="secondary" [outlined]="true" (onClick)="addDuringSymptom()" [disabled]="!newDuringSymptom"></p-button>
+                </div>
+                <p *ngIf="!duringSymptoms.length" class="text-xs text-neutral-500 m-0">Add at least one symptom that occurred during exertion.</p>
+                <div *ngFor="let ds of duringSymptoms; let i = index" class="border border-neutral-200 rounded p-3 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium">{{ formatSymptom(ds.symptom) }}</span>
+                    <button class="text-xs text-neutral-500 hover:text-red-600" (click)="removeDuringSymptom(i)">Remove</button>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-neutral-600 w-20 shrink-0">Δ severity</span>
+                    <p-slider [(ngModel)]="ds.delta" [min]="0" [max]="6" [step]="1" class="flex-1"></p-slider>
+                    <span class="text-xs tabular-nums w-4 text-right">{{ ds.delta }}</span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-neutral-600 w-20 shrink-0">Duration</span>
+                    <p-slider [(ngModel)]="ds.durationMinutes" [min]="0" [max]="120" [step]="15" class="flex-1"></p-slider>
+                    <span class="text-xs tabular-nums w-12 text-right">{{ ds.durationMinutes }} min</span>
+                  </div>
                 </div>
               </div>
-              <div>
-                <h4 class="text-sm font-medium m-0 mb-2">Exertion attempt</h4>
-                <div class="space-y-2">
-                  <input pInputText [(ngModel)]="exInput.activity" placeholder="Activity (e.g. JOGGING)" class="w-full"/>
-                  <input pInputText [(ngModel)]="exInput.intensity" placeholder="Intensity" class="w-full"/>
-                  <p-button label="Log attempt" size="small" (onClick)="reportExertion()"></p-button>
-                </div>
-              </div>
-              <div>
-                <h4 class="text-sm font-medium m-0 mb-2">Symptom during exertion</h4>
-                <div class="space-y-2">
-                  <p-select [(ngModel)]="duringInput.symptom" [options]="symptomOptions" placeholder="Symptom" styleClass="w-full"></p-select>
-                  <p-inputNumber [(ngModel)]="duringInput.delta" [min]="0" [max]="10" placeholder="Δ severity" styleClass="w-full"></p-inputNumber>
-                  <p-inputNumber [(ngModel)]="duringInput.durationMinutes" [min]="0" placeholder="Duration min" styleClass="w-full"></p-inputNumber>
-                  <p-button label="Log exacerbation" size="small" severity="warn" (onClick)="reportDuringExertion()"></p-button>
-                </div>
-              </div>
-              <div>
-                <h4 class="text-sm font-medium m-0 mb-2">Red flag</h4>
-                <div class="space-y-2">
-                  <p-select [(ngModel)]="redFlagInput.symptom" [options]="redFlagOptions" placeholder="Red flag" styleClass="w-full"></p-select>
-                  <p-button label="Trigger red flag" size="small" severity="danger" (onClick)="reportRedFlag()" [disabled]="!redFlagInput.symptom"></p-button>
-                </div>
+
+              <div class="flex justify-end">
+                <p-button label="Submit exertion" size="small" (onClick)="submitExertion()"
+                          [disabled]="!exertion.activity || (hadSymptomsDuring && !duringSymptoms.length)"></p-button>
               </div>
             </div>
           </section>
@@ -259,6 +317,7 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private auth = inject(AuthService);
+  private toast = inject(MessageService);
 
   @ViewChild('chart') chartRef?: ElementRef<HTMLCanvasElement>;
   private chart?: Chart;
@@ -272,21 +331,26 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
 
   athleteId = computed(() => this.dashboard()?.athlete?.id ?? '');
 
-  symInput = { symptom: '', level: 0 };
-  exInput = { activity: '', intensity: '' };
-  duringInput = { symptom: '', delta: 0, durationMinutes: 0 };
-  redFlagInput = { symptom: '' };
+  symptomList = SCAT6_SYMPTOMS;
+  dailyLevels: { [key: string]: number } = {};
+
+  exertion: { activity: string } = { activity: '' };
+  hadSymptomsDuring = false;
+  newDuringSymptom = '';
+  duringSymptoms: DuringSymptom[] = [];
+
   advanceInput = { toStep: 2 };
   clearanceInput = { clearanceForStep: 4, physicianId: '', note: '' };
 
-  symptomOptions = SCAT6_SYMPTOMS.map(s => ({ label: s, value: s }));
-  redFlagOptions = RED_FLAG_TYPES.map(s => ({ label: s, value: s }));
+  symptomSelectOptions = SCAT6_SYMPTOMS.map(s => ({ label: this.formatSymptom(s), value: s }));
+  redFlagOptions = RED_FLAG_TYPES;
   stepOptions = Object.entries(STEP_NAMES).map(([k, v]) => ({ label: `Step ${k} — ${v}`, value: parseInt(k, 10) }));
 
   canDoctor = computed(() => this.auth.role() === 'DOCTOR' || this.auth.role() === 'ADMIN');
   canSeeRoster = computed(() => this.canDoctor());
 
   constructor() {
+    SCAT6_SYMPTOMS.forEach(s => this.dailyLevels[s] = 0);
     effect(() => {
       const h = this.history();
       if (this.chart) this.updateChart(h);
@@ -349,42 +413,104 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  reportSymptom() {
-    this.api.reportSymptom({ athleteId: this.athleteId(), symptom: this.symInput.symptom, level: this.symInput.level })
-      .subscribe(() => this.refresh());
+  dailyNonZeroCount(): number {
+    return SCAT6_SYMPTOMS.filter(s => (this.dailyLevels[s] ?? 0) > 0).length;
   }
-  reportRedFlag() {
-    this.api.reportSymptom({ athleteId: this.athleteId(), symptom: this.redFlagInput.symptom, level: 6 })
-      .subscribe(() => this.refresh());
+
+  resetDaily() {
+    SCAT6_SYMPTOMS.forEach(s => this.dailyLevels[s] = 0);
   }
-  reportExertion() {
-    this.api.reportExertion({ athleteId: this.athleteId(), activity: this.exInput.activity, intensity: this.exInput.intensity })
-      .subscribe(() => this.refresh());
+
+  submitDailyCheck() {
+    const count = this.dailyNonZeroCount();
+    if (count === 0) return;
+    this.api.dailyCheck(this.athleteId(), this.dailyLevels).subscribe({
+      next: r => {
+        this.toast.add({ severity: 'success', summary: 'Daily check submitted',
+          detail: `${r.submitted} symptom(s) recorded · ${r.rulesFired} rule(s) fired`, life: 4000 });
+        this.resetDaily();
+        this.refresh();
+      },
+      error: e => this.toast.add({ severity: 'error', summary: 'Submission failed', detail: e.error?.error ?? 'Unknown error', life: 4000 })
+    });
   }
-  reportDuringExertion() {
-    this.api.reportSymptomDuringExertion({
-      athleteId: this.athleteId(), symptom: this.duringInput.symptom,
-      delta: this.duringInput.delta, durationMinutes: this.duringInput.durationMinutes
-    }).subscribe(() => this.refresh());
+
+  addDuringSymptom() {
+    if (!this.newDuringSymptom) return;
+    if (this.duringSymptoms.some(s => s.symptom === this.newDuringSymptom)) {
+      this.toast.add({ severity: 'info', summary: 'Already added', life: 2000 });
+      return;
+    }
+    this.duringSymptoms.push({ symptom: this.newDuringSymptom, delta: 1, durationMinutes: 15 });
+    this.newDuringSymptom = '';
   }
+
+  removeDuringSymptom(i: number) {
+    this.duringSymptoms.splice(i, 1);
+  }
+
+  submitExertion() {
+    if (!this.exertion.activity) return;
+    if (this.hadSymptomsDuring && !this.duringSymptoms.length) return;
+    const aid = this.athleteId();
+    const payload = {
+      exertion: { athleteId: aid, activity: this.exertion.activity },
+      symptoms: this.hadSymptomsDuring
+        ? this.duringSymptoms.map(s => ({ athleteId: aid, ...s }))
+        : []
+    };
+    this.api.exertionWithSymptoms(payload).subscribe({
+      next: r => {
+        const sym = r.symptomCount > 0 ? `, ${r.symptomCount} provoked symptom(s)` : '';
+        this.toast.add({ severity: 'success', summary: 'Exertion logged',
+          detail: `${this.exertion.activity}${sym} · ${r.rulesFired} rule(s) fired`, life: 4000 });
+        this.exertion = { activity: '' };
+        this.hadSymptomsDuring = false;
+        this.duringSymptoms = [];
+        this.refresh();
+      },
+      error: e => this.toast.add({ severity: 'error', summary: 'Submission failed', detail: e.error?.error ?? 'Unknown error', life: 4000 })
+    });
+  }
+
+  triggerRedFlag(flagType: string) {
+    this.api.reportSymptom({ athleteId: this.athleteId(), symptom: flagType, level: 6 }).subscribe({
+      next: () => {
+        this.toast.add({ severity: 'error', summary: 'Red flag triggered',
+          detail: `${this.formatSymptom(flagType)} — emergency protocol engaged`, life: 5000 });
+        this.refresh();
+      },
+      error: e => this.toast.add({ severity: 'error', summary: 'Failed', detail: e.error?.error ?? 'Unknown error', life: 4000 })
+    });
+  }
+
   advance() {
     const cur = this.dashboard()?.athlete.currentStep ?? 1;
     this.api.recordAdvancement({ athleteId: this.athleteId(), fromStep: cur, toStep: this.advanceInput.toStep })
-      .subscribe(() => this.refresh());
+      .subscribe({
+        next: () => { this.toast.add({ severity: 'success', summary: 'Step updated', life: 3000 }); this.refresh(); },
+        error: e => this.toast.add({ severity: 'error', summary: 'Failed', detail: e.error?.error ?? 'Unknown error' })
+      });
   }
+
   recordClearance() {
     this.api.recordClearance({
       athleteId: this.athleteId(),
       clearanceForStep: this.clearanceInput.clearanceForStep,
       physicianId: this.clearanceInput.physicianId,
       note: this.clearanceInput.note
-    }).subscribe(() => this.refresh());
+    }).subscribe({
+      next: () => { this.toast.add({ severity: 'success', summary: 'Clearance recorded', life: 3000 }); this.refresh(); },
+      error: e => this.toast.add({ severity: 'error', summary: 'Failed', detail: e.error?.error ?? 'Unknown error' })
+    });
   }
+
   checkReadiness() {
     this.api.readyToAdvance(this.athleteId(), this.advanceInput.toStep).subscribe(r => this.readiness.set(r));
   }
 
   stepName(s: number) { return STEP_NAMES[s] ?? '—'; }
+  formatSymptom(s: string) { return s.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()); }
 
   hasAnyDerived(d: Dashboard) {
     return d.intoleranceFlags.length || d.regressTriggers.length || d.exacerbations.length
