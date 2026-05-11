@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, ElementRef, inject, signal, computed, viewChild, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -321,13 +321,13 @@ interface DuringSymptom {
     </div>
   `
 })
-export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
+export class AthleteComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
   private auth = inject(AuthService);
   private toast = inject(MessageService);
 
-  @ViewChild('chart') chartRef?: ElementRef<HTMLCanvasElement>;
+  chartRef = viewChild<ElementRef<HTMLCanvasElement>>('chart');
   private chart?: Chart;
 
   dashboard = signal<Dashboard | null>(null);
@@ -365,6 +365,11 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor() {
     SCAT6_SYMPTOMS.forEach(s => this.dailyLevels[s] = 0);
+    effect(() => {
+      const ref = this.chartRef();
+      const history = this.history();
+      if (ref) this.renderChart(ref.nativeElement, history);
+    });
   }
 
   ngOnInit() {
@@ -372,15 +377,9 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
     this.refresh(id);
   }
 
-  ngAfterViewInit() {
-    this.renderChart();
-  }
-
   ngOnDestroy() { this.chart?.destroy(); }
 
-  private renderChart() {
-    if (!this.chartRef) return;
-    const history = this.history();
+  private renderChart(canvas: HTMLCanvasElement, history: SymptomReportedEvent[]) {
 
     const sorted = [...history]
       .filter(h => h.timestamp)
@@ -408,7 +407,7 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
     } as any));
 
     if (this.chart) this.chart.destroy();
-    this.chart = new Chart(this.chartRef.nativeElement, {
+    this.chart = new Chart(canvas, {
       type: 'line',
       data: { labels, datasets },
       options: {
@@ -430,10 +429,7 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!aid) return;
     this.api.dashboard(aid).subscribe(d => this.dashboard.set(d));
     this.api.allowedActivities(aid).subscribe(r => this.allowed.set(r.activities));
-    this.api.symptomHistory(aid).subscribe(h => {
-      this.history.set(h);
-      queueMicrotask(() => this.renderChart());
-    });
+    this.api.symptomHistory(aid).subscribe(h => this.history.set(h));
     this.api.estimatedReturn(aid).subscribe(e => this.estimate.set(e));
     this.api.dailyCheckToday(aid).subscribe(r => {
       if (r.submitted) {
