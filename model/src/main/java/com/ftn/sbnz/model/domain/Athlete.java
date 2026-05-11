@@ -111,4 +111,11 @@ public class Athlete implements Serializable {
         if (n == 1) return 36;
         return 48;
     }
+
+    public int dwellBonusHours() {
+        int n = cisgFactorCount();
+        if (n == 0) return 0;
+        if (n == 1) return 12;
+        return 24;
+    }
 }

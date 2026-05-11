@@ -9,9 +9,10 @@ import com.ftn.sbnz.model.events.SymptomReportedEvent;
 import com.ftn.sbnz.model.events.SymptomDuringExertionEvent;
 
 query readyToAdvance(String aid, int targetStep)
-    Athlete(id == aid, currentStep == targetStep - 1, $entered: stepEnteredAt != null)
+    $a: Athlete(id == aid, currentStep == targetStep - 1, $entered: stepEnteredAt != null)
     MinStepDwellRule(athleteId == aid, $minH: minHours)
-    eval(java.time.Duration.between($entered, java.time.LocalDateTime.now()).toHours() >= $minH)
+    eval(java.time.Duration.between($entered, java.time.LocalDateTime.now()).toHours()
+         >= $minH + $a.dwellBonusHours())
     not ExertionIntoleranceFlag(athleteId == aid)
     not EmergencyAlert(athleteId == aid)
     not SymptomDuringExertionEvent(athleteId == aid, delta > 2 || durationMinutes > 60)

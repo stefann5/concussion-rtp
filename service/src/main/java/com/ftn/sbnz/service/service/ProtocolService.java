@@ -248,16 +248,20 @@ public class ProtocolService {
             missing.add("Athlete is on step " + a.getCurrentStep() + ", can only advance to step " + (a.getCurrentStep() + 1));
         }
 
-        Integer minHours = null;
+        Integer baseHours = null;
         for (Object o : s.getObjects(o -> o instanceof MinStepDwellRule && ((MinStepDwellRule) o).getAthleteId().equals(aid))) {
-            minHours = ((MinStepDwellRule) o).getMinHours();
+            baseHours = ((MinStepDwellRule) o).getMinHours();
         }
-        if (minHours == null) {
+        if (baseHours == null) {
             missing.add("No minimum-dwell rule resolved for this athlete profile");
         } else if (a.getStepEnteredAt() != null) {
+            int effective = baseHours + a.dwellBonusHours();
             long hoursOnStep = java.time.Duration.between(a.getStepEnteredAt(), LocalDateTime.now()).toHours();
-            if (hoursOnStep < minHours) {
-                missing.add("Only " + hoursOnStep + "h on current step (minimum " + minHours + "h required)");
+            if (hoursOnStep < effective) {
+                String detail = a.dwellBonusHours() == 0
+                    ? effective + "h required"
+                    : effective + "h required (" + baseHours + "h base + " + a.dwellBonusHours() + "h CISG bonus)";
+                missing.add("Only " + hoursOnStep + "h on current step (" + detail + ")");
             }
         } else {
             missing.add("Step entry time missing on athlete profile");
@@ -294,22 +298,32 @@ public class ProtocolService {
         if (a == null) return java.util.Map.of("error", "Athlete not found");
         KieSession s = knowledge.getSessionFor(aid);
         s.fireAllRules();
-        int minHours = 24;
+        int baseHours = 24;
         for (Object o : s.getObjects(o -> o instanceof MinStepDwellRule && ((MinStepDwellRule) o).getAthleteId().equals(aid))) {
-            minHours = ((MinStepDwellRule) o).getMinHours();
+            baseHours = ((MinStepDwellRule) o).getMinHours();
         }
+        int bonus = a.dwellBonusHours();
+        int minHoursPerStep = baseHours + bonus;
         int stepsRemaining = Math.max(0, 6 - a.getCurrentStep());
-        int totalHours = stepsRemaining * minHours;
+        int totalHours = stepsRemaining * minHoursPerStep;
         java.time.LocalDateTime earliest = java.time.LocalDateTime.now().plusHours(totalHours);
+        String note;
+        if (stepsRemaining == 0) {
+            note = "Already at step 6 — eligible for return";
+        } else if (bonus > 0) {
+            note = "Optimistic estimate: " + baseHours + "h base + " + bonus + "h CISG bonus per step, no setbacks";
+        } else {
+            note = "Optimistic estimate assuming each step is cleared at the minimum dwell with no setbacks";
+        }
         return java.util.Map.of(
                 "currentStep", a.getCurrentStep(),
                 "stepsRemaining", stepsRemaining,
-                "minHoursPerStep", minHours,
+                "minHoursPerStep", minHoursPerStep,
+                "baseHoursPerStep", baseHours,
+                "cisgBonusHours", bonus,
                 "earliestReturn", earliest.toString(),
                 "assumesNoSetbacks", true,
-                "note", stepsRemaining == 0
-                    ? "Already at step 6 — eligible for return"
-                    : "Optimistic estimate assuming each step is cleared at the minimum dwell with no setbacks"
+                "note", note
         );
     }
 
