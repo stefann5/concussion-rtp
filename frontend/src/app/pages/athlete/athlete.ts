@@ -394,23 +394,37 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private updateChart(history: SymptomReportedEvent[]) {
     if (!this.chart) return;
-    const bySymptom = new Map<string, { x: string; y: number }[]>();
-    history.forEach(ev => {
-      const arr = bySymptom.get(ev.symptom) ?? [];
-      arr.push({ x: ev.timestamp ?? new Date().toISOString(), y: ev.level });
-      bySymptom.set(ev.symptom, arr);
+    const sorted = [...history]
+      .filter(h => h.timestamp)
+      .sort((a, b) => new Date(a.timestamp!).getTime() - new Date(b.timestamp!).getTime());
+    const labels = Array.from(new Set(sorted.map(h => this.formatTs(h.timestamp!))));
+
+    const bySymptom = new Map<string, Map<string, number>>();
+    sorted.forEach(ev => {
+      const key = this.formatTs(ev.timestamp!);
+      const m = bySymptom.get(ev.symptom) ?? new Map<string, number>();
+      m.set(key, ev.level);
+      bySymptom.set(ev.symptom, m);
     });
+
     const palette = ['#1f2937', '#ef4444', '#f59e0b', '#10b981', '#6366f1', '#ec4899', '#0ea5e9', '#84cc16'];
-    const labels = Array.from(new Set(history.map(h => new Date(h.timestamp ?? '').toLocaleString())));
     this.chart.data.labels = labels;
-    this.chart.data.datasets = Array.from(bySymptom.entries()).map(([sym, points], i) => ({
-      label: sym,
-      data: points.map(p => p.y),
+    this.chart.data.datasets = Array.from(bySymptom.entries()).map(([sym, m], i) => ({
+      label: this.formatSymptom(sym),
+      data: labels.map(l => m.has(l) ? m.get(l)! : null),
       borderColor: palette[i % palette.length],
       backgroundColor: palette[i % palette.length],
-      tension: 0.2
-    }));
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      tension: 0.2,
+      spanGaps: true
+    } as any));
     this.chart.update();
+  }
+
+  private formatTs(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
   refresh(id?: string) {
