@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit, inject, signal, computed, effect } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -365,10 +365,6 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor() {
     SCAT6_SYMPTOMS.forEach(s => this.dailyLevels[s] = 0);
-    effect(() => {
-      const h = this.history();
-      if (this.chart) this.updateChart(h);
-    });
   }
 
   ngOnInit() {
@@ -377,25 +373,15 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit() {
-    if (this.chartRef) {
-      this.chart = new Chart(this.chartRef.nativeElement, {
-        type: 'line',
-        data: { labels: [], datasets: [] },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-          scales: { y: { min: 0, max: 6, title: { display: true, text: 'Severity 0-6' } } }
-        }
-      });
-      this.updateChart(this.history());
-    }
+    this.renderChart();
   }
 
   ngOnDestroy() { this.chart?.destroy(); }
 
-  private updateChart(history: SymptomReportedEvent[]) {
-    if (!this.chart) return;
+  private renderChart() {
+    if (!this.chartRef) return;
+    const history = this.history();
+
     const sorted = [...history]
       .filter(h => h.timestamp)
       .sort((a, b) => new Date(a.timestamp!).getTime() - new Date(b.timestamp!).getTime());
@@ -410,8 +396,7 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     const palette = ['#1f2937', '#ef4444', '#f59e0b', '#10b981', '#6366f1', '#ec4899', '#0ea5e9', '#84cc16'];
-    this.chart.data.labels = labels;
-    this.chart.data.datasets = Array.from(bySymptom.entries()).map(([sym, m], i) => ({
+    const datasets = Array.from(bySymptom.entries()).map(([sym, m], i) => ({
       label: this.formatSymptom(sym),
       data: labels.map(l => m.has(l) ? m.get(l)! : null),
       borderColor: palette[i % palette.length],
@@ -421,7 +406,18 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
       tension: 0.2,
       spanGaps: true
     } as any));
-    this.chart.update();
+
+    if (this.chart) this.chart.destroy();
+    this.chart = new Chart(this.chartRef.nativeElement, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+        scales: { y: { min: 0, max: 6, title: { display: true, text: 'Severity 0-6' } } }
+      }
+    });
   }
 
   private formatTs(iso: string): string {
@@ -434,7 +430,10 @@ export class AthleteComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!aid) return;
     this.api.dashboard(aid).subscribe(d => this.dashboard.set(d));
     this.api.allowedActivities(aid).subscribe(r => this.allowed.set(r.activities));
-    this.api.symptomHistory(aid).subscribe(h => this.history.set(h));
+    this.api.symptomHistory(aid).subscribe(h => {
+      this.history.set(h);
+      queueMicrotask(() => this.renderChart());
+    });
     this.api.estimatedReturn(aid).subscribe(e => this.estimate.set(e));
     this.api.dailyCheckToday(aid).subscribe(r => {
       if (r.submitted) {
