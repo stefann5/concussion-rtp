@@ -88,9 +88,17 @@ public class EventController {
 
     @PostMapping("/medical-clearance")
     @PreAuthorize("hasRole('DOCTOR')")
-    public Map<String, Object> medicalClearance(@RequestBody MedicalClearanceEvent ev) {
+    public Map<String, Object> medicalClearance(@RequestBody MedicalClearanceEvent ev,
+                                                org.springframework.security.core.Authentication auth) {
+        ev.setPhysicianId(usernameOf(auth));
         int fired = protocol.recordMedicalClearance(ev);
         return Map.of("rulesFired", fired);
+    }
+
+    private static String usernameOf(org.springframework.security.core.Authentication auth) {
+        Object p = auth.getPrincipal();
+        if (p instanceof com.ftn.sbnz.service.auth.JwtFilter.AuthPrincipal ap) return ap.username();
+        return auth.getName();
     }
 
     @PostMapping("/objective-test")

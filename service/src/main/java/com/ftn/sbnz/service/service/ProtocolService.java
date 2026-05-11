@@ -65,7 +65,10 @@ public class ProtocolService {
     private String currentActor() {
         try {
             var auth = SecurityContextHolder.getContext().getAuthentication();
-            return auth == null ? "system" : auth.getName();
+            if (auth == null) return "system";
+            Object p = auth.getPrincipal();
+            if (p instanceof com.ftn.sbnz.service.auth.JwtFilter.AuthPrincipal ap) return ap.username();
+            return auth.getName();
         } catch (Exception e) { return "system"; }
     }
 

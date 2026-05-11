@@ -211,9 +211,9 @@ interface DuringSymptom {
               </div>
               <div>
                 <h4 class="text-sm font-medium m-0 mb-2">Medical clearance</h4>
+                <p class="text-xs text-neutral-500 m-0 mb-2">Signed by: <span class="font-medium text-neutral-700">{{ auth.state()?.displayName }}</span></p>
                 <div class="space-y-2">
                   <p-select [(ngModel)]="clearanceInput.clearanceForStep" [options]="stepOptions" placeholder="For step" styleClass="w-full"></p-select>
-                  <input pInputText [(ngModel)]="clearanceInput.physicianId" placeholder="Physician ID" class="w-full"/>
                   <input pInputText [(ngModel)]="clearanceInput.note" placeholder="Note" class="w-full"/>
                   <p-button label="Record clearance" size="small" (onClick)="recordClearance()"></p-button>
                 </div>
@@ -324,7 +324,7 @@ interface DuringSymptom {
 export class AthleteComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   private route = inject(ActivatedRoute);
-  private auth = inject(AuthService);
+  auth = inject(AuthService);
   private toast = inject(MessageService);
 
   chartRef = viewChild<ElementRef<HTMLCanvasElement>>('chart');
@@ -354,7 +354,7 @@ export class AthleteComponent implements OnInit, OnDestroy {
   );
 
   advanceInput = { toStep: 2 };
-  clearanceInput = { clearanceForStep: 4, physicianId: '', note: '' };
+  clearanceInput = { clearanceForStep: 4, note: '' };
 
   symptomSelectOptions = SCAT6_SYMPTOMS.map(s => ({ label: this.formatSymptom(s), value: s }));
   redFlagOptions = RED_FLAG_TYPES;
@@ -535,7 +535,6 @@ export class AthleteComponent implements OnInit, OnDestroy {
     this.api.recordClearance({
       athleteId: this.athleteId(),
       clearanceForStep: this.clearanceInput.clearanceForStep,
-      physicianId: this.clearanceInput.physicianId,
       note: this.clearanceInput.note
     }).subscribe({
       next: () => { this.toast.add({ severity: 'success', summary: 'Clearance recorded', life: 3000 }); this.refresh(); },

@@ -63,7 +63,6 @@ export interface StepAdvancementEvent {
 export interface MedicalClearanceEvent {
   athleteId: string;
   clearanceForStep: number;
-  physicianId: string;
   note: string;
   timestamp?: string;
 }
