@@ -101,7 +101,9 @@ interface DuringSymptom {
 
           <section class="bg-white border border-neutral-200 rounded-lg p-4">
             <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0 mb-3">Symptom timeline</h3>
-            <canvas #chart class="w-full" style="max-height: 220px;"></canvas>
+            <div style="position: relative; height: 260px;">
+              <canvas #chart></canvas>
+            </div>
             <p *ngIf="!history().length" class="text-sm text-neutral-500 m-0 mt-2">No symptom reports yet.</p>
           </section>
 
