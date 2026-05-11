@@ -33,12 +33,12 @@ end
 rule "Symptom recurrence after step advancement"
     when
         $adv: StepAdvancementEvent($aid: athleteId)
-        $a: Athlete(id == $aid, $base: baselineSymptoms)
+        $a: Athlete(id == $aid, $base: baselineSymptoms, $window: recurrenceWindowHours())
         $sr: SymptomReportedEvent(athleteId == $aid, $sym: symptom, $lvl: level,
                                   level > $a.baselineFor($sym))
         eval($sr.getTimestamp().getTime() >= $adv.getTimestamp().getTime())
-        eval($sr.getTimestamp().getTime() - $adv.getTimestamp().getTime() <= 24L*60L*60L*1000L)
+        eval($sr.getTimestamp().getTime() - $adv.getTimestamp().getTime() <= (long) $window * 60L*60L*1000L)
         not RegressTrigger(athleteId == $aid)
     then
-        insert(new RegressTrigger($aid, "Symptom " + $sym + " above baseline within 24h after step advance"));
+        insert(new RegressTrigger($aid, "Symptom " + $sym + " above baseline within " + $window + "h after step advance"));
 end

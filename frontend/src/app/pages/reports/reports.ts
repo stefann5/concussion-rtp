@@ -47,7 +47,7 @@ import { STEP_NAMES } from '../../models/domain';
 
     <section class="bg-white border border-neutral-200 rounded-lg overflow-hidden">
       <div class="px-4 py-3 border-b border-neutral-200">
-        <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0">Risk summary</h3>
+        <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0">Athlete summary</h3>
       </div>
       <p-table [value]="riskRows()">
         <ng-template pTemplate="header">
@@ -55,7 +55,6 @@ import { STEP_NAMES } from '../../models/domain';
             <th>Athlete</th>
             <th>Sport</th>
             <th>Step</th>
-            <th>Risk</th>
             <th>Alerts</th>
             <th>Intolerance</th>
             <th>Persisting</th>
@@ -68,7 +67,6 @@ import { STEP_NAMES } from '../../models/domain';
             <td><a [routerLink]="['/athletes', r.id]" class="text-neutral-900 hover:underline font-medium">{{ r.name }}</a></td>
             <td class="text-neutral-600">{{ r.sport }}</td>
             <td class="text-neutral-600">{{ r.currentStep }}</td>
-            <td><p-tag [value]="r.riskScore" [severity]="r.riskScore >= 100 ? 'danger' : r.riskScore >= 30 ? 'warn' : 'success'"></p-tag></td>
             <td><span [class.text-red-600]="r.alerts > 0" [class.font-semibold]="r.alerts > 0">{{ r.alerts }}</span></td>
             <td class="text-neutral-600">{{ r.intolerance }}</td>
             <td class="text-neutral-600">{{ r.persisting }}</td>
@@ -77,7 +75,7 @@ import { STEP_NAMES } from '../../models/domain';
           </tr>
         </ng-template>
         <ng-template pTemplate="emptymessage">
-          <tr><td colspan="9" class="text-center py-8 text-sm text-neutral-500">No athletes registered.</td></tr>
+          <tr><td colspan="8" class="text-center py-8 text-sm text-neutral-500">No athletes registered.</td></tr>
         </ng-template>
       </p-table>
     </section>

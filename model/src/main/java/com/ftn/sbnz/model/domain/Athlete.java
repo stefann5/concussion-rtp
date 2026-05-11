@@ -92,4 +92,23 @@ public class Athlete implements Serializable {
     public int baselineFor(String symptom) {
         return baselineSymptoms.getOrDefault(symptom, 0);
     }
+
+    public int cisgFactorCount() {
+        if (riskFactors == null) return 0;
+        int c = 0;
+        if (riskFactors.isMigraine()) c++;
+        if (riskFactors.isAdhd()) c++;
+        if (riskFactors.isAnxiety()) c++;
+        if (riskFactors.isLearningDifficulties()) c++;
+        if (riskFactors.isMentalHealthHistory()) c++;
+        if (riskFactors.isSleepDisorder()) c++;
+        return c;
+    }
+
+    public int recurrenceWindowHours() {
+        int n = cisgFactorCount();
+        if (n == 0) return 24;
+        if (n == 1) return 36;
+        return 48;
+    }
 }

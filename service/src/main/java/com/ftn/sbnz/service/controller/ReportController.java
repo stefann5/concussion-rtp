@@ -70,11 +70,8 @@ public class ReportController {
             m.put("persisting", protocol.getPersistingSymptoms(a.getId()).size());
             m.put("rehab", protocol.getCervicovestibularIndications(a.getId()).size());
             m.put("individualized", protocol.getIndividualizedAssessments(a.getId()).size());
-            int risk = (int) m.get("alerts") * 100 + (int) m.get("intolerance") * 30
-                    + (int) m.get("persisting") * 50 + (int) m.get("rehab") * 20;
-            m.put("riskScore", risk);
             return m;
-        }).sorted((a, b) -> ((Integer) b.get("riskScore")).compareTo((Integer) a.get("riskScore")))
+        }).sorted((a, b) -> a.get("name").toString().compareTo(b.get("name").toString()))
           .collect(Collectors.toList());
     }
 
