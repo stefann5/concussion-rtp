@@ -241,22 +241,51 @@ public class ProtocolService {
             missing.add("Athlete profile not found");
             return new ReadinessResult(false, missing);
         }
-        if (a.getCurrentStep() != targetStep - 1) {
-            missing.add("Current step (" + a.getCurrentStep() + ") is not target - 1");
+        if (targetStep < 2 || targetStep > 6) {
+            missing.add("Target step must be between 2 and 6");
         }
+        if (a.getCurrentStep() != targetStep - 1) {
+            missing.add("Athlete is on step " + a.getCurrentStep() + ", can only advance to step " + (a.getCurrentStep() + 1));
+        }
+
+        Integer minHours = null;
+        for (Object o : s.getObjects(o -> o instanceof MinStepDwellRule && ((MinStepDwellRule) o).getAthleteId().equals(aid))) {
+            minHours = ((MinStepDwellRule) o).getMinHours();
+        }
+        if (minHours == null) {
+            missing.add("No minimum-dwell rule resolved for this athlete profile");
+        } else if (a.getStepEnteredAt() != null) {
+            long hoursOnStep = java.time.Duration.between(a.getStepEnteredAt(), LocalDateTime.now()).toHours();
+            if (hoursOnStep < minHours) {
+                missing.add("Only " + hoursOnStep + "h on current step (minimum " + minHours + "h required)");
+            }
+        } else {
+            missing.add("Step entry time missing on athlete profile");
+        }
+
         if (!getExertionIntoleranceFlags(aid).isEmpty()) {
-            missing.add("Active ExertionIntoleranceFlag");
+            missing.add("Active exertion-intolerance flag");
         }
         if (!getAlerts(aid).isEmpty()) {
-            missing.add("Active EmergencyAlert");
+            missing.add("Active emergency alert");
         }
+
+        boolean exertionExacerbation = !s.getObjects(o -> o instanceof SymptomDuringExertionEvent
+                && ((SymptomDuringExertionEvent) o).getAthleteId().equals(aid)
+                && (((SymptomDuringExertionEvent) o).getDelta() > 2 || ((SymptomDuringExertionEvent) o).getDurationMinutes() > 60)).isEmpty();
+        if (exertionExacerbation) {
+            missing.add("Recent more-than-mild exacerbation during exertion");
+        }
+
         if (targetStep >= 4) {
-            QueryResults clr = s.getQueryResults("readyToAdvance", aid, targetStep);
-            boolean hasClearance = clr.iterator().hasNext();
-            if (!hasClearance && !ready) {
+            boolean hasClearance = !s.getObjects(o -> o instanceof MedicalClearanceEvent
+                    && ((MedicalClearanceEvent) o).getAthleteId().equals(aid)
+                    && ((MedicalClearanceEvent) o).getClearanceForStep() >= targetStep).isEmpty();
+            if (!hasClearance) {
                 missing.add("Medical clearance for step " + targetStep + " required");
             }
         }
+
         return new ReadinessResult(ready, missing);
     }
 
