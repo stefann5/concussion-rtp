@@ -75,7 +75,9 @@ public class ProtocolService {
         AuditService.Recorder rec = audit.attach(ev.getAthleteId(), s);
         s.insert(ev);
         int fired = s.fireAllRules();
-        audit.record(ev.getAthleteId(), "SymptomReported(" + ev.getSymptom() + "=" + ev.getLevel() + ")", currentActor(), rec);
+        audit.record(ev.getAthleteId(),
+                "SymptomReported(" + ev.getSymptom() + "=" + ev.getLevel() + ")",
+                currentActor(), rec, ev.getTimestamp());
         return fired;
     }
 
@@ -111,7 +113,8 @@ public class ProtocolService {
         AuditService.Recorder rec = audit.attach(ev.getAthleteId(), s);
         s.insert(ev);
         int fired = s.fireAllRules();
-        audit.record(ev.getAthleteId(), "ExertionAttempt(" + ev.getActivity() + ")", currentActor(), rec);
+        audit.record(ev.getAthleteId(), "ExertionAttempt(" + ev.getActivity() + ")",
+                currentActor(), rec, ev.getTimestamp());
         return fired;
     }
 
@@ -121,7 +124,9 @@ public class ProtocolService {
         AuditService.Recorder rec = audit.attach(ev.getAthleteId(), s);
         s.insert(ev);
         int fired = s.fireAllRules();
-        audit.record(ev.getAthleteId(), "SymptomDuringExertion(" + ev.getSymptom() + " +" + ev.getDelta() + ")", currentActor(), rec);
+        audit.record(ev.getAthleteId(),
+                "SymptomDuringExertion(" + ev.getSymptom() + " +" + ev.getDelta() + ")",
+                currentActor(), rec, ev.getTimestamp());
         return fired;
     }
 

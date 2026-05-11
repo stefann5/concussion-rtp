@@ -44,14 +44,21 @@ public class AuditService {
     }
 
     public void record(String athleteId, String trigger, String actor, Recorder rec) {
-        AuditEntry entry = new AuditEntry(new Date(), athleteId, trigger, actor,
+        record(athleteId, trigger, actor, rec, new Date());
+    }
+
+    public void record(String athleteId, String trigger, String actor, Recorder rec, Date timestamp) {
+        AuditEntry entry = new AuditEntry(timestamp, athleteId, trigger, actor,
                 new ArrayList<>(rec.rules), new ArrayList<>(rec.facts));
         log.computeIfAbsent(athleteId, k -> Collections.synchronizedList(new ArrayList<>())).add(entry);
         rec.reset();
     }
 
     public List<AuditEntry> entriesFor(String athleteId) {
-        return log.getOrDefault(athleteId, List.of());
+        List<AuditEntry> raw = log.getOrDefault(athleteId, List.of());
+        List<AuditEntry> sorted = new ArrayList<>(raw);
+        sorted.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp()));
+        return sorted;
     }
 
     public List<AuditEntry> all() {

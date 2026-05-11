@@ -52,8 +52,8 @@ interface DuringSymptom {
         </div>
       </div>
 
-      <!-- Emergency signs panel: prominent, compact, distinct -->
-      <section class="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+      <!-- Emergency signs panel: athlete-only (self-report) -->
+      <section *ngIf="isAthlete()" class="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
         <div class="flex items-center justify-between mb-3">
           <div>
             <h3 class="text-xs uppercase tracking-wide text-red-700 m-0 font-semibold">Emergency signs</h3>
@@ -115,8 +115,8 @@ interface DuringSymptom {
             </div>
           </section>
 
-          <!-- Daily SCAT6 check: 22 sliders, locked once submitted today -->
-          <section class="bg-white border border-neutral-200 rounded-lg p-4">
+          <!-- Daily SCAT6 check: 22 sliders, locked once submitted today, athlete-only -->
+          <section *ngIf="isAthlete()" class="bg-white border border-neutral-200 rounded-lg p-4">
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0">Daily symptom check (at rest)</h3>
               <button *ngIf="!dailyLocked()" class="text-xs text-neutral-500 hover:text-neutral-900" (click)="resetDaily()">Reset</button>
@@ -138,8 +138,8 @@ interface DuringSymptom {
             </div>
           </section>
 
-          <!-- Exertion form: attempt + optional symptoms -->
-          <section class="bg-white border border-neutral-200 rounded-lg p-4">
+          <!-- Exertion form: attempt + optional symptoms, athlete-only -->
+          <section *ngIf="isAthlete()" class="bg-white border border-neutral-200 rounded-lg p-4">
             <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0 mb-3">Exertion log</h3>
             <div class="space-y-3">
               <label class="flex flex-col gap-1.5">
@@ -362,6 +362,7 @@ export class AthleteComponent implements OnInit, OnDestroy {
 
   canDoctor = computed(() => this.auth.role() === 'DOCTOR' || this.auth.role() === 'ADMIN');
   canSeeRoster = computed(() => this.canDoctor());
+  isAthlete = computed(() => this.auth.role() === 'ATHLETE');
 
   constructor() {
     SCAT6_SYMPTOMS.forEach(s => this.dailyLevels[s] = 0);

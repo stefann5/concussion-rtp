@@ -28,14 +28,14 @@ public class EventController {
     }
 
     @PostMapping("/symptom")
-    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId)")
+    @PreAuthorize("hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId")
     public Map<String, Object> symptom(@RequestBody SymptomReportedEvent ev) {
         int fired = protocol.reportSymptom(ev);
         return Map.of("rulesFired", fired);
     }
 
     @PostMapping("/daily-check")
-    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #req.athleteId)")
+    @PreAuthorize("hasRole('ATHLETE') and authentication.principal.athleteId == #req.athleteId")
     public org.springframework.http.ResponseEntity<?> dailyCheck(@RequestBody DailyCheckRequest req) {
         if (req.getLevels() == null) return org.springframework.http.ResponseEntity.badRequest().body(Map.of("error", "levels required"));
         try {
@@ -51,21 +51,21 @@ public class EventController {
     }
 
     @PostMapping("/exertion-attempt")
-    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId)")
+    @PreAuthorize("hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId")
     public Map<String, Object> exertionAttempt(@RequestBody ExertionAttemptEvent ev) {
         int fired = protocol.reportExertionAttempt(ev);
         return Map.of("rulesFired", fired);
     }
 
     @PostMapping("/symptom-during-exertion")
-    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId)")
+    @PreAuthorize("hasRole('ATHLETE') and authentication.principal.athleteId == #ev.athleteId")
     public Map<String, Object> symptomDuringExertion(@RequestBody SymptomDuringExertionEvent ev) {
         int fired = protocol.reportSymptomDuringExertion(ev);
         return Map.of("rulesFired", fired);
     }
 
     @PostMapping("/exertion-with-symptoms")
-    @PreAuthorize("hasAnyRole('DOCTOR','ADMIN') or (hasRole('ATHLETE') and authentication.principal.athleteId == #req.exertion.athleteId)")
+    @PreAuthorize("hasRole('ATHLETE') and authentication.principal.athleteId == #req.exertion.athleteId")
     public Map<String, Object> exertionWithSymptoms(@RequestBody ExertionWithSymptomsRequest req) {
         int fired = protocol.reportExertionAttempt(req.getExertion());
         int symptomCount = 0;
