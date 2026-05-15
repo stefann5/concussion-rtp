@@ -13,7 +13,7 @@ import { STEP_NAMES } from '../../models/domain';
   template: `
     <h2 class="text-xl font-semibold m-0 mb-6">Reports</h2>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
       <section class="bg-white border border-neutral-200 rounded-lg p-4">
         <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0 mb-3">By step</h3>
         <div class="space-y-1">
@@ -33,14 +33,6 @@ import { STEP_NAMES } from '../../models/domain';
             <span class="font-medium tabular-nums">{{ s.count }}</span>
           </div>
           <div *ngIf="!bySportRows().length" class="text-sm text-neutral-400">—</div>
-        </div>
-      </section>
-
-      <section class="bg-white border border-neutral-200 rounded-lg p-4">
-        <h3 class="text-xs uppercase tracking-wide text-neutral-500 m-0 mb-3">Average recovery</h3>
-        <div *ngIf="avgRecovery() as ar">
-          <p class="text-3xl font-semibold tabular-nums m-0">{{ ar.avgDays | number:'1.1-1' }}<span class="text-base text-neutral-400 font-normal ml-1">days</span></p>
-          <p class="text-xs text-neutral-500 m-0 mt-1">{{ ar.count }} previous concussion records</p>
         </div>
       </section>
     </div>
@@ -85,7 +77,6 @@ export class ReportsComponent implements OnInit {
   private api = inject(ApiService);
   byStepRows = signal<{ step: number; count: number }[]>([]);
   bySportRows = signal<{ sport: string; count: number }[]>([]);
-  avgRecovery = signal<{ count: number; avgDays: number; note?: string } | null>(null);
   riskRows = signal<any[]>([]);
 
   ngOnInit() {
@@ -99,7 +90,6 @@ export class ReportsComponent implements OnInit {
       rows.sort((a, b) => b.count - a.count);
       this.bySportRows.set(rows);
     });
-    this.api.avgRecovery().subscribe(r => this.avgRecovery.set(r));
     this.api.riskSummary().subscribe(r => this.riskRows.set(r));
   }
 
