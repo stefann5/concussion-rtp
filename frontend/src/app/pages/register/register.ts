@@ -47,10 +47,6 @@ import { Athlete, STEP_NAMES } from '../../models/domain';
             <p-select [(ngModel)]="athlete.contactLevel" [options]="contactLevels"></p-select>
           </label>
           <label class="flex flex-col gap-1.5">
-            <span class="text-xs font-medium text-neutral-600">Age group</span>
-            <p-select [(ngModel)]="athlete.ageGroup" [options]="ageGroups"></p-select>
-          </label>
-          <label class="flex flex-col gap-1.5">
             <span class="text-xs font-medium text-neutral-600">Concussion history</span>
             <p-select [(ngModel)]="athlete.historyFlag" [options]="historyFlags"></p-select>
           </label>
@@ -128,7 +124,6 @@ export class RegisterComponent {
     age: 18,
     sport: '',
     contactLevel: 'CONTACT',
-    ageGroup: 'ADULT',
     historyFlag: 'NONE',
     riskFactors: {
       migraine: false, adhd: false, anxiety: false,
@@ -141,7 +136,6 @@ export class RegisterComponent {
 
   sexes = [{ label: 'Male', value: 'MALE' }, { label: 'Female', value: 'FEMALE' }, { label: 'Other', value: 'OTHER' }];
   contactLevels = [{ label: 'Contact', value: 'CONTACT' }, { label: 'Non-contact', value: 'NONCONTACT' }];
-  ageGroups = [{ label: 'Adult', value: 'ADULT' }, { label: 'Pediatric', value: 'PEDIATRIC' }];
   historyFlags = [
     { label: 'No previous concussions', value: 'NONE' },
     { label: 'One previous', value: 'SINGLE' },

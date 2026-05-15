@@ -75,7 +75,6 @@ interface DuringSymptom {
         <div class="text-xs text-red-700 mt-0.5">{{ a.actionType }} · {{ a.severity }}</div>
       </div>
 
-      <div *ngFor="let p of d.pediatricRtl" class="mb-3 px-4 py-3 rounded-lg border border-blue-200 bg-blue-50 text-sm text-blue-900">{{ p.message }}</div>
       <div *ngFor="let i of d.individualizedAssessments" class="mb-3 px-4 py-3 rounded-lg border border-purple-200 bg-purple-50 text-sm text-purple-900">{{ i.reason }}</div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">

@@ -4,6 +4,7 @@ import com.ftn.sbnz.model.enums.RedFlagType;
 import com.ftn.sbnz.model.enums.Severity;
 
 import java.io.Serializable;
+import java.util.Date;
 
 public class EmergencyAlert implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -13,15 +14,21 @@ public class EmergencyAlert implements Serializable {
     private Severity severity;
     private String actionType;
     private String message;
+    private Date insertedAt;
 
     public EmergencyAlert() {}
 
     public EmergencyAlert(String athleteId, RedFlagType flagType, Severity severity, String actionType, String message) {
+        this(athleteId, flagType, severity, actionType, message, new Date());
+    }
+
+    public EmergencyAlert(String athleteId, RedFlagType flagType, Severity severity, String actionType, String message, Date insertedAt) {
         this.athleteId = athleteId;
         this.flagType = flagType;
         this.severity = severity;
         this.actionType = actionType;
         this.message = message;
+        this.insertedAt = insertedAt;
     }
 
     public String getAthleteId() { return athleteId; }
@@ -38,4 +45,7 @@ public class EmergencyAlert implements Serializable {
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
+
+    public Date getInsertedAt() { return insertedAt; }
+    public void setInsertedAt(Date insertedAt) { this.insertedAt = insertedAt; }
 }

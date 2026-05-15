@@ -30,6 +30,18 @@ rule "Exertion intolerance pattern"
         insert(new ExertionIntoleranceFlag($aid, "Two or more exertion-provoked exacerbations within 48h"));
 end
 
+rule "Clear exertion intolerance when 48h window no longer holds the pattern"
+    when
+        $flag: ExertionIntoleranceFlag($aid: athleteId)
+        Number(intValue < 2) from accumulate(
+            $ev: SymptomDuringExertionEvent(athleteId == $aid, delta > 2 || durationMinutes > 60)
+                 over window:time(48h),
+            count($ev)
+        )
+    then
+        retract($flag);
+end
+
 rule "Symptom recurrence after step advancement"
     when
         $adv: StepAdvancementEvent($aid: athleteId)

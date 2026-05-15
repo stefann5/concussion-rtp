@@ -1,6 +1,5 @@
 package com.ftn.sbnz.model.domain;
 
-import com.ftn.sbnz.model.enums.AgeGroup;
 import com.ftn.sbnz.model.enums.ContactLevel;
 import com.ftn.sbnz.model.enums.HistoryFlag;
 import com.ftn.sbnz.model.enums.Sex;
@@ -24,7 +23,6 @@ public class Athlete implements Serializable {
     private String competitionLevel;
 
     private ContactLevel contactLevel;
-    private AgeGroup ageGroup;
     private HistoryFlag historyFlag;
 
     private RiskFactors riskFactors = new RiskFactors();
@@ -34,7 +32,6 @@ public class Athlete implements Serializable {
     private int currentStep;
     private LocalDateTime stepEnteredAt;
     private LocalDateTime injuryAt;
-    private boolean returnToLearnComplete;
 
     public Athlete() {}
 
@@ -62,9 +59,6 @@ public class Athlete implements Serializable {
     public ContactLevel getContactLevel() { return contactLevel; }
     public void setContactLevel(ContactLevel contactLevel) { this.contactLevel = contactLevel; }
 
-    public AgeGroup getAgeGroup() { return ageGroup; }
-    public void setAgeGroup(AgeGroup ageGroup) { this.ageGroup = ageGroup; }
-
     public HistoryFlag getHistoryFlag() { return historyFlag; }
     public void setHistoryFlag(HistoryFlag historyFlag) { this.historyFlag = historyFlag; }
 
@@ -85,9 +79,6 @@ public class Athlete implements Serializable {
 
     public LocalDateTime getInjuryAt() { return injuryAt; }
     public void setInjuryAt(LocalDateTime injuryAt) { this.injuryAt = injuryAt; }
-
-    public boolean isReturnToLearnComplete() { return returnToLearnComplete; }
-    public void setReturnToLearnComplete(boolean returnToLearnComplete) { this.returnToLearnComplete = returnToLearnComplete; }
 
     public int baselineFor(String symptom) {
         return baselineSymptoms.getOrDefault(symptom, 0);

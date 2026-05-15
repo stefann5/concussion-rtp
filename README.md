@@ -122,7 +122,7 @@ Sistem pri tome **ne zamenjuje SCAT/SCOAT obrasce** — naprotiv, oni su mu glav
 **Za lekara / atletskog trenera**:
 - Trenutni alarm o znaku za hitnu reakciju
 - Preporuka napredovanja / vraćanja unazad sa objašnjenjem (lanac dokaza iz unazadnog ulančavanja)
-- Oznaka uključenog izmenjenog podprotokola (pedijatrijski, indikacija za cervikovestibularnu rehabilitaciju, perzistentni simptomi, ponovljeni potres — individualizovana procena)
+- Oznaka uključenog izmenjenog podprotokola (indikacija za cervikovestibularnu rehabilitaciju, perzistentni simptomi, ponovljeni potres — individualizovana procena)
 - Tabla svih sportista pod nadzorom sa filtriranjem po riziku
 - Izveštaj o pridržavanju protokola od strane sportiste
 
@@ -145,7 +145,7 @@ Sistem pri tome **ne zamenjuje SCAT/SCOAT obrasce** — naprotiv, oni su mu glav
    - **>10 dana** vrtoglavica / bol u vratu / glavobolja → indikacija za **cervikovestibularnu rehabilitaciju**
    - **2–4 nedelje** ako simptomi traju, pogoršavaju se ili ne idu na bolje → **višestruka procena (SCOAT6) i upućivanje na rehabilitaciju**
    - **>4 nedelje** = zvanična definicija **"perzistentnih simptoma"** (persisting symptoms; ista za decu, adolescente i odrasle, glasanje stručne grupe 92.9% slaganja)
-6. **Razvrstavanje sportova po nivou kontakta**: kontaktni i sportovi sa rizikom sudara (svih 6 koraka), nekontaktni (Koraci 4–5 mogu biti smanjeni jer nema rizika udarca u glavu), pedijatrija (potpuni povratak učenju — RTL, Return to Learn — pre potpunog povratka sportu — RTS, Return to Sport; povratak školi ima prioritet).
+6. **Razvrstavanje sportova po nivou kontakta**: kontaktni i sportovi sa rizikom sudara (svih 6 koraka), nekontaktni (Koraci 4–5 mogu biti smanjeni jer nema rizika udarca u glavu).
 
 **Kako se baza znanja popunjava**:
 
@@ -182,7 +182,7 @@ Sistem pri tome **ne zamenjuje SCAT/SCOAT obrasce** — naprotiv, oni su mu glav
 4. **Nivo 2 (FC)**: Pravilo `ComputeSymptomTrend` gleda poslednja 3 dana → `SymptomTrend(athleteId="marko", trend=WORSENING_WITH_PROVOCATION)`
 5. **Nivo 3 (FC)**: Pravilo `DetermineProgressionStatus` gleda `SymptomTrend + ExertionIntoleranceFlag + MoreThanMildExacerbation` → ubacuje `ProgressionStatus(athleteId="marko", status=STOP_TODAY_RETRY_TOMORROW)`. **Marko je na Koraku 3**, pa se po Amsterdam 2022 logici za Korake 1–3 ne vraća unazad — zaustavlja vežbu i pokušava **isti** Korak 3 sledećeg dana
 6. **Nivo 4 (FC)**: Pravilo `StepRecommendation` prevodi status u akciju → `StepRecommendation(athleteId="marko", action=HOLD, currentStep=3, retryAfterHours=24)`
-7. **Instanca šablona**: Tabelarno pravilo `MinDaysBetweenSteps(sportContact=CONTACT, ageGroup=ADULT)` potvrđuje minimum od 24h pre sledećeg pokušaja
+7. **Instanca šablona**: Tabelarno pravilo `MinDaysBetweenSteps(sportContact=CONTACT, historyFlag=NONE)` potvrđuje minimum od 24h pre sledećeg pokušaja
 8. **Nivo 5 (FC)**: Pravilo `MaterializeConcreteActivity` generiše dva recepta:
    - `ConcreteActivityPrescription(athleteId="marko", date=day5_remainder, allowedActivities=[REST], blockedActivities=[ANY_EXERCISE], note="Stop today after setback")` — za ostatak dana 5
    - `ConcreteActivityPrescription(athleteId="marko", date=day6, allowedActivities=[SPORT_SPECIFIC_DRILLS_NO_HEAD_IMPACT, RUNNING, CHANGE_OF_DIRECTION_DRILLS, INDIVIDUAL_TRAINING_DRILLS], blockedActivities=[TEAM_DRILLS, CONTACT_DRILLS, COMPETITIVE_PLAY], note="Retry Step 3 — sport-specific training away from team environment, no head impact")` — za sutrašnji pokušaj istog Koraka 3 (po Amsterdam 2022 Tabeli 2)
@@ -376,23 +376,22 @@ U sistemu se šabloni koriste za tri familije pravila gde Amsterdam 2022 dogovor
 
 **Svrha**: Amsterdam 2022 propisuje minimum 24h između koraka kao standard, ali takođe poziva na "individualizovanu procenu" za sportiste sa ponovljenim potresima i pominje produžen oporavak kod određenih CISG faktora rizika. Šablon dozvoljava ustanovi da konfiguriše duži minimum za određene podgrupe **bez izmene koda pravila**.
 
-**Logika šablona**: za svaki sportista čiji se profil poklapa sa kombinacijom (uzrast, nivo kontakta sporta, oznaka istorije potresa), ako još nema postavljen `MinStepDwellRule`, sistem ubacuje činjenicu `MinStepDwellRule(sportista, minimumSati)` koja kasnije utiče na proveru spremnosti za napredovanje.
+**Logika šablona**: za svaki sportista čiji se profil poklapa sa kombinacijom (nivo kontakta sporta, oznaka istorije potresa), ako još nema postavljen `MinStepDwellRule`, sistem ubacuje činjenicu `MinStepDwellRule(sportista, minimumSati)` koja kasnije utiče na proveru spremnosti za napredovanje.
 
-**Parametri**: `ageGroup`, `contactLevel`, `historyFlag`, `minHours`.
+**Parametri**: `contactLevel`, `historyFlag`, `minHours`.
 
 **`MinStepDwell.csv`** (osnovna konfiguracija po Amsterdam 2022):
 ```
-ageGroup,    contactLevel, historyFlag, minHours
-ADULT,       CONTACT,      NONE,        24
-ADULT,       CONTACT,      MULTIPLE,    24
-ADULT,       NONCONTACT,   NONE,        24
-ADULT,       NONCONTACT,   MULTIPLE,    24
-PEDIATRIC,   CONTACT,      NONE,        24
-PEDIATRIC,   CONTACT,      MULTIPLE,    24
-PEDIATRIC,   NONCONTACT,   NONE,        24
+contactLevel, historyFlag, minHours
+CONTACT,      NONE,        24
+CONTACT,      SINGLE,      24
+CONTACT,      MULTIPLE,    48
+NONCONTACT,   NONE,        24
+NONCONTACT,   SINGLE,      24
+NONCONTACT,   MULTIPLE,    36
 ```
 
-Tabela ima 7 redova → generiše se 7 konkretnih pravila iz jednog šablona. Ako lekar odluči da uvede 48h minimum za pedijatriju sa ponovljenim potresom (što neke ustanove primenjuju kao opreznu praksu iznad konsenzusa), to je promena jednog broja u CSV-u — ne treba diranje koda.
+Tabela ima 6 redova → generiše se 6 konkretnih pravila iz jednog šablona. Ako lekar odluči da uvede 72h minimum za kontaktni sport sa ponovljenim potresom (što neke ustanove primenjuju kao opreznu praksu iznad konsenzusa), to je promena jednog broja u CSV-u — ne treba diranje koda.
 
 ### 6.2 Šablon `AllowedActivity` — dozvoljene top-level kategorije aktivnosti po koraku
 

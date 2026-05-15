@@ -88,7 +88,6 @@ public class AthleteController {
         m.put("persisting", protocol.getPersistingSymptoms(id));
         m.put("rehabIndications", protocol.getCervicovestibularIndications(id));
         m.put("locks", protocol.getLocks(id));
-        m.put("pediatricRtl", protocol.getPediatricRtl(id));
         m.put("individualizedAssessments", protocol.getIndividualizedAssessments(id));
         return m;
     }

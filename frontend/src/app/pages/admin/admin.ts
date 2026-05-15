@@ -33,7 +33,7 @@ import { ApiService } from '../../services/api.service';
 
       <div class="mt-6 pt-4 border-t border-neutral-200 text-xs text-neutral-500 leading-relaxed">
         <p class="m-0 font-medium text-neutral-700 mb-1">Format reference</p>
-        <p class="m-0">MinStepDwell: ageGroup, contactLevel, historyFlag, minHours</p>
+        <p class="m-0">MinStepDwell: contactLevel, historyFlag, minHours</p>
         <p class="m-0">RedFlagSeverity: flagType, severity, salienceLevel, actionType</p>
         <p class="m-0">AllowedActivity: step, allowedCategory, sourceCitation</p>
       </div>

@@ -5,7 +5,6 @@ import com.ftn.sbnz.model.auth.User;
 import com.ftn.sbnz.model.domain.Athlete;
 import com.ftn.sbnz.model.domain.PreviousConcussion;
 import com.ftn.sbnz.model.domain.RiskFactors;
-import com.ftn.sbnz.model.enums.AgeGroup;
 import com.ftn.sbnz.model.enums.ContactLevel;
 import com.ftn.sbnz.model.enums.HistoryFlag;
 import com.ftn.sbnz.model.enums.Sex;
@@ -45,7 +44,7 @@ public class DemoAthleteSeed {
         if (!knowledge.listAthletes().isEmpty()) return;
 
         Athlete marko = build("ath_marko", "Marko Jovanović", 19, Sex.MALE, "rugby",
-                "flanker", "club", ContactLevel.CONTACT, AgeGroup.ADULT, HistoryFlag.NONE,
+                "flanker", "club", ContactLevel.CONTACT, HistoryFlag.NONE,
                 3, LocalDateTime.now().minusDays(6));
         knowledge.registerAthlete(marko);
         userStore.register(new User("marko", encoder.encode("marko"), Role.ATHLETE, marko.getName(), marko.getId()));
@@ -59,7 +58,7 @@ public class DemoAthleteSeed {
                 Date.from(LocalDateTime.now().minusHours(3).atZone(java.time.ZoneId.systemDefault()).toInstant())));
 
         Athlete sara = build("ath_sara", "Sara Marković", 15, Sex.FEMALE, "soccer",
-                "midfielder", "school", ContactLevel.CONTACT, AgeGroup.PEDIATRIC, HistoryFlag.SINGLE,
+                "midfielder", "school", ContactLevel.CONTACT, HistoryFlag.SINGLE,
                 2, LocalDateTime.now().minusDays(8));
         sara.getRiskFactors().setMigraine(true);
         sara.getPreviousConcussions().add(new PreviousConcussion(LocalDate.now().minusYears(1), 18));
@@ -71,7 +70,7 @@ public class DemoAthleteSeed {
         seedDailyReport(sara.getId(), 1, "DIZZINESS", 2);
 
         Athlete luka = build("ath_luka", "Luka Đorđević", 24, Sex.MALE, "basketball",
-                "guard", "professional", ContactLevel.NONCONTACT, AgeGroup.ADULT, HistoryFlag.MULTIPLE,
+                "guard", "professional", ContactLevel.NONCONTACT, HistoryFlag.MULTIPLE,
                 5, LocalDateTime.now().minusDays(14));
         luka.getRiskFactors().setAnxiety(true);
         luka.getPreviousConcussions().add(new PreviousConcussion(LocalDate.now().minusYears(2), 21));
@@ -97,7 +96,7 @@ public class DemoAthleteSeed {
 
     private Athlete build(String id, String name, int age, Sex sex, String sport,
                           String position, String level, ContactLevel contact,
-                          AgeGroup ageGroup, HistoryFlag history, int step, LocalDateTime injury) {
+                          HistoryFlag history, int step, LocalDateTime injury) {
         Athlete a = new Athlete();
         a.setId(id);
         a.setName(name);
@@ -107,7 +106,6 @@ public class DemoAthleteSeed {
         a.setPosition(position);
         a.setCompetitionLevel(level);
         a.setContactLevel(contact);
-        a.setAgeGroup(ageGroup);
         a.setHistoryFlag(history);
         a.setRiskFactors(new RiskFactors());
         a.setCurrentStep(step);

@@ -62,8 +62,8 @@ public class KnowledgeService {
                     "rules/fc/ActivityValidation.drl",
                     "rules/fc/ActivityCategory.drl",
                     "rules/fc/ReadinessQuery.drl",
-                    "rules/fc/PediatricRTL.drl",
-                    "rules/fc/IndividualizedAssessment.drl"
+                    "rules/fc/IndividualizedAssessment.drl",
+                    "rules/fc/MedicalClearance.drl"
             };
             for (String path : drlPaths) {
                 kfs.write("src/main/resources/" + path, readClasspath("/" + path));
@@ -143,7 +143,7 @@ public class KnowledgeService {
     }
 
     private MinStepDwellTemplate parseDwellRow(String[] c) {
-        return new MinStepDwellTemplate(c[0].trim(), c[1].trim(), c[2].trim(), Integer.parseInt(c[3].trim()));
+        return new MinStepDwellTemplate(c[0].trim(), c[1].trim(), Integer.parseInt(c[2].trim()));
     }
 
     private RedFlagSeverityTemplate parseRedFlagRow(String[] c) {

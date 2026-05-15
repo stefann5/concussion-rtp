@@ -1,5 +1,4 @@
 template header
-ageGroup
 contactLevel
 historyFlag
 minHours
@@ -8,16 +7,14 @@ package rules.templates;
 
 import com.ftn.sbnz.model.domain.Athlete;
 import com.ftn.sbnz.model.facts.MinStepDwellRule;
-import com.ftn.sbnz.model.enums.AgeGroup;
 import com.ftn.sbnz.model.enums.ContactLevel;
 import com.ftn.sbnz.model.enums.HistoryFlag;
 
 template "MinStepDwellTemplate"
 
-rule "MinStepDwell @{row.rowNumber} @{ageGroup} @{contactLevel} @{historyFlag}"
+rule "MinStepDwell @{row.rowNumber} @{contactLevel} @{historyFlag}"
 when
-    $a: Athlete(ageGroup == AgeGroup.@{ageGroup},
-                contactLevel == ContactLevel.@{contactLevel},
+    $a: Athlete(contactLevel == ContactLevel.@{contactLevel},
                 historyFlag == HistoryFlag.@{historyFlag})
     not MinStepDwellRule(athleteId == $a.id)
 then

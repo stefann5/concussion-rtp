@@ -52,7 +52,7 @@ All endpoints except `/api/auth/**` require a `Authorization: Bearer <jwt>` head
 - `GET /api/athletes` — roster
 - `POST /api/athletes` — register (DOCTOR/ADMIN)
 - `GET /api/athletes/{id}` — profile
-- `GET /api/athletes/{id}/dashboard` — full state with derived facts, pediatric RTL, individualized assessment
+- `GET /api/athletes/{id}/dashboard` — full state with derived facts, individualized assessment
 - `GET /api/athletes/{id}/symptom-history` — chart data
 - `GET /api/athletes/{id}/estimated-return` — estimateEarliestReturn
 - `GET /api/athletes/{id}/allowed-activities` — recursive BC enumeration

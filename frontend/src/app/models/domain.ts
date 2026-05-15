@@ -7,7 +7,6 @@ export interface Athlete {
   position?: string;
   competitionLevel?: string;
   contactLevel: 'CONTACT' | 'NONCONTACT';
-  ageGroup: 'PEDIATRIC' | 'ADULT';
   historyFlag: 'NONE' | 'SINGLE' | 'MULTIPLE';
   riskFactors: RiskFactors;
   previousConcussions: PreviousConcussion[];
@@ -15,7 +14,6 @@ export interface Athlete {
   currentStep: number;
   stepEnteredAt?: string;
   injuryAt?: string;
-  returnToLearnComplete?: boolean;
 }
 
 export interface RiskFactors {
@@ -109,7 +107,6 @@ export interface Dashboard {
   persisting: { athleteId: string; reason: string }[];
   rehabIndications: { athleteId: string; reason: string }[];
   locks: { athleteId: string; lockUntilHours: number; reason: string; lockedAt: string }[];
-  pediatricRtl: { athleteId: string; message: string }[];
   individualizedAssessments: { athleteId: string; reason: string }[];
 }
 

@@ -35,9 +35,9 @@ import { AuthService } from '../../auth/auth.service';
         <p class="m-0">trainer / trainer — clinician</p>
         <p class="m-0">admin / admin — template editor</p>
         <p class="m-0 mt-2 font-medium text-neutral-600">Demo athletes</p>
-        <p class="m-0">marko / marko — adult, rugby, step 3</p>
-        <p class="m-0">sara / sara — pediatric, soccer, step 2</p>
-        <p class="m-0">luka / luka — adult, basketball, step 5</p>
+        <p class="m-0">marko / marko — rugby, step 3</p>
+        <p class="m-0">sara / sara — soccer, step 2</p>
+        <p class="m-0">luka / luka — basketball, step 5</p>
       </div>
     </div>
   `

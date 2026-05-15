@@ -1,0 +1,16 @@
+package rules.fc;
+
+import com.ftn.sbnz.model.events.MedicalClearanceEvent;
+import com.ftn.sbnz.model.events.SymptomReportedEvent;
+import com.ftn.sbnz.model.facts.EmergencyAlert;
+
+rule "Medical clearance retracts pre-clearance emergency alerts"
+    when
+        $ce: MedicalClearanceEvent($aid: athleteId, $clearedAt: timestamp)
+        $alert: EmergencyAlert(athleteId == $aid, insertedAt != null)
+        eval($alert.getInsertedAt().getTime() < $clearedAt.getTime())
+        $sym: SymptomReportedEvent(athleteId == $aid, symptom == $alert.getFlagType().name())
+    then
+        retract($alert);
+        retract($sym);
+end

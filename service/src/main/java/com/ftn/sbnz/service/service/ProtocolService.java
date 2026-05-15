@@ -212,10 +212,6 @@ public class ProtocolService {
         return queryFacts(aid, ProtocolLockEvent.class, f -> f.getAthleteId().equals(aid));
     }
 
-    public List<com.ftn.sbnz.model.facts.PediatricRtlPending> getPediatricRtl(String aid) {
-        return queryFacts(aid, com.ftn.sbnz.model.facts.PediatricRtlPending.class, f -> f.getAthleteId().equals(aid));
-    }
-
     public List<com.ftn.sbnz.model.facts.IndividualizedAssessmentRequired> getIndividualizedAssessments(String aid) {
         return queryFacts(aid, com.ftn.sbnz.model.facts.IndividualizedAssessmentRequired.class, f -> f.getAthleteId().equals(aid));
     }
