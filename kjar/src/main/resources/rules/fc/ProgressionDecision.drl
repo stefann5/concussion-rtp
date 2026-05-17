@@ -17,8 +17,7 @@ rule "Determine status STOP_AND_RETRY at steps 1-3"
     when
         $a: Athlete($aid: id, currentStep >= 1 && currentStep <= 3)
         (ExertionIntoleranceFlag(athleteId == $aid) or
-         RegressTrigger(athleteId == $aid) or
-         MoreThanMildExacerbation(athleteId == $aid))
+         RegressTrigger(athleteId == $aid))
         not ProgressionStatusFact(athleteId == $aid)
     then
         insert(new ProgressionStatusFact($aid, ProgressionStatus.STOP_TODAY_RETRY_TOMORROW,
@@ -31,8 +30,7 @@ rule "Determine status REGRESS at steps 4-6"
     when
         $a: Athlete($aid: id, currentStep >= 4 && currentStep <= 6)
         (ExertionIntoleranceFlag(athleteId == $aid) or
-         RegressTrigger(athleteId == $aid) or
-         MoreThanMildExacerbation(athleteId == $aid))
+         RegressTrigger(athleteId == $aid))
         not ProgressionStatusFact(athleteId == $aid)
     then
         insert(new ProgressionStatusFact($aid, ProgressionStatus.REGRESS_TO_STEP_3,

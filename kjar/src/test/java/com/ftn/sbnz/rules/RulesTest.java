@@ -6,6 +6,7 @@ import com.ftn.sbnz.model.enums.ContactLevel;
 import com.ftn.sbnz.model.enums.HistoryFlag;
 import com.ftn.sbnz.model.events.ExertionAttemptEvent;
 import com.ftn.sbnz.model.events.MedicalClearanceEvent;
+import com.ftn.sbnz.model.events.StepAdvancementEvent;
 import com.ftn.sbnz.model.events.SymptomDuringExertionEvent;
 import com.ftn.sbnz.model.events.SymptomReportedEvent;
 import com.ftn.sbnz.model.facts.ActivityBlockedAlert;
@@ -16,6 +17,7 @@ import com.ftn.sbnz.model.facts.MoreThanMildExacerbation;
 import com.ftn.sbnz.model.facts.PersistingSymptomsFlag;
 import com.ftn.sbnz.model.facts.ProgressionStatusFact;
 import com.ftn.sbnz.model.facts.ProtocolLockEvent;
+import com.ftn.sbnz.model.facts.RegressTrigger;
 import com.ftn.sbnz.model.facts.StepRecommendation;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -176,6 +178,27 @@ class RulesTest {
         assertThat(recs.get(0).getAction()).isEqualTo(ActionType.REGRESS);
         assertThat(recs.get(0).getRecommendedStep()).isEqualTo(3);
 
+        assertThat(a.getCurrentStep()).isEqualTo(3);
+        s.dispose();
+    }
+
+    @Test
+    void single_exertion_bump_within_24h_of_step_advance_triggers_REGRESS_at_step5() {
+        KieSession s = harness.newSession();
+        Athlete a = athlete(5, ContactLevel.CONTACT, HistoryFlag.NONE);
+        s.insert(a);
+        s.fireAllRules();
+
+        SessionPseudoClock clock = s.getSessionClock();
+        s.insert(new StepAdvancementEvent(a.getId(), 4, 5, new Date(clock.getCurrentTime())));
+        clock.advanceTime(3, TimeUnit.HOURS);
+        s.insert(new SymptomDuringExertionEvent(a.getId(), "HEADACHE", 3, 40, new Date(clock.getCurrentTime())));
+        s.fireAllRules();
+
+        assertThat(facts(s, RegressTrigger.class)).hasSize(1);
+        List<StepRecommendation> recs = facts(s, StepRecommendation.class);
+        assertThat(recs).hasSize(1);
+        assertThat(recs.get(0).getAction()).isEqualTo(ActionType.REGRESS);
         assertThat(a.getCurrentStep()).isEqualTo(3);
         s.dispose();
     }

@@ -1,7 +1,6 @@
 package rules.cep;
 
 import com.ftn.sbnz.model.events.SymptomDuringExertionEvent;
-import com.ftn.sbnz.model.events.SymptomReportedEvent;
 import com.ftn.sbnz.model.events.StepAdvancementEvent;
 import com.ftn.sbnz.model.facts.ExertionIntoleranceFlag;
 import com.ftn.sbnz.model.facts.MoreThanMildExacerbation;
@@ -42,15 +41,15 @@ rule "Clear exertion intolerance when 48h window no longer holds the pattern"
         retract($flag);
 end
 
-rule "Symptom recurrence after step advancement"
+rule "Exertion exacerbation after step advancement"
     when
         $adv: StepAdvancementEvent($aid: athleteId)
-        $a: Athlete(id == $aid, $base: baselineSymptoms, $window: recurrenceWindowHours())
-        $sr: SymptomReportedEvent(athleteId == $aid, $sym: symptom, $lvl: level,
-                                  level > $a.baselineFor($sym))
-        eval($sr.getTimestamp().getTime() >= $adv.getTimestamp().getTime())
-        eval($sr.getTimestamp().getTime() - $adv.getTimestamp().getTime() <= (long) $window * 60L*60L*1000L)
+        $a: Athlete(id == $aid, $window: recurrenceWindowHours())
+        $sde: SymptomDuringExertionEvent(athleteId == $aid, $sym: symptom, $d: delta,
+                                          delta > 2 || durationMinutes > 60)
+        eval($sde.getTimestamp().getTime() >= $adv.getTimestamp().getTime())
+        eval($sde.getTimestamp().getTime() - $adv.getTimestamp().getTime() <= (long) $window * 60L*60L*1000L)
         not RegressTrigger(athleteId == $aid)
     then
-        insert(new RegressTrigger($aid, "Symptom " + $sym + " above baseline within " + $window + "h after step advance"));
+        insert(new RegressTrigger($aid, "Exertion exacerbation (" + $sym + ", delta=" + $d + ") within " + $window + "h after step advance"));
 end
